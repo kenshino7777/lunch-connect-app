@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lunch Connect（プロトタイプ）</title>
+<style>
+  :root{
+    --bg:#f4f1ea;
+    --panel:#ffffff;
+    --ink:#2c2a26;
+    --sub:#8a8378;
+    --line:#eae5da;
+    --accent:#ff7a45;
+    --accent-soft:#fff1ea;
+    --accent2:#3aa17e;
+    --accent2-soft:#e9f7f1;
+    --gold:#e0a527;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    background:#dcd6c8;
+    display:flex;
+    justify-content:center;
+    padding:24px 12px;
+    color:var(--ink);
+  }
+  /* phone frame */
+  .phone{
+    width:390px;
+    max-width:100%;
+    height:820px;
+    background:var(--bg);
+    border-radius:36px;
+    box-shadow:0 20px 60px rgba(0,0,0,.35);
+    border:8px solid #1c1c1c;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+  }
+  .statusbar{
+    height:28px;
+    background:#1c1c1c;
+    color:#fff;
+    font-size:11px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 18px;
+    flex-shrink:0;
+  }
+  header.app{
+    padding:14px 18px 12px;
+    background:var(--panel);
+    border-bottom:1px solid var(--line);
+    flex-shrink:0;
+    position:relative;
+  }
+  header.app h1{
+    margin:0;
+    font-size:18px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  header.app h1 .logo-dot{color:var(--accent);}
+  header.app .sub{font-size:11px;color:var(--sub);margin-top:2px;}
+  .profile-chip{
+    position:absolute;right:14px;top:12px;
+    display:flex;align-items:center;gap:6px;
+    background:var(--accent-soft);border:1px solid var(--line);
+    border-radius:20px;padding:4px 10px 4px 4px;cursor:pointer;
+  }
+  .profile-chip .av{width:26px;height:26px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;overflow:hidden;flex-shrink:0;}
+  .profile-chip .av img{width:100%;height:100%;object-fit:cover;}
+  .profile-chip .nm{font-size:11px;font-weight:700;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+  /* register / profile overlay */
+  .register-overlay{
+    position:absolute;inset:0;background:var(--bg);z-index:60;
+    display:flex;flex-direction:column;justify-content:center;
+    padding:28px 26px;overflow-y:auto;
+  }
+  .register-overlay.hidden{display:none;}
+  .register-overlay .emoji-top{font-size:36px;text-align:center;margin-bottom:6px;}
+  .register-overlay h2{font-size:18px;text-align:center;margin:0 0 4px;}
+  .register-overlay .desc{font-size:12px;color:var(--sub);text-align:center;margin:0 0 22px;line-height:1.5;}
+  .register-overlay label{font-size:11px;color:var(--sub);display:block;margin:12px 0 4px;}
+  .register-overlay input[type="text"]{
+    width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;background:#fff;
+  }
+  .photo-upload{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:6px;cursor:pointer;}
+  .photo-preview{
+    width:76px;height:76px;border-radius:50%;background:#fff;
+    border:2px dashed var(--line);display:flex;align-items:center;justify-content:center;
+    font-size:30px;overflow:hidden;flex-shrink:0;
+  }
+  .photo-preview img{width:100%;height:100%;object-fit:cover;}
+  .photo-upload-txt{font-size:11px;color:var(--accent);font-weight:600;}
+  .register-overlay .submit-btn{
+    width:100%;margin-top:22px;padding:13px;border:none;border-radius:12px;
+    background:var(--accent);color:#fff;font-weight:700;font-size:14px;cursor:pointer;
+  }
+  .register-overlay .logout-btn{
+    width:100%;margin-top:10px;padding:11px;border:1px solid var(--line);border-radius:12px;
+    background:none;color:var(--sub);font-weight:600;font-size:12.5px;cursor:pointer;
+  }
+  .register-overlay .close-x{
+    position:absolute;top:16px;right:16px;background:none;border:none;font-size:18px;color:var(--sub);cursor:pointer;
+  }
+  .field-error{color:#d14545;font-size:11px;margin-top:5px;display:none;text-align:center;}
+
+  .screen{
+    flex:1;
+    overflow-y:auto;
+    -ms-overflow-style:none;
+    scrollbar-width:none;
+  }
+  .screen::-webkit-scrollbar{display:none;}
+  .tabpanel{display:none;padding:14px 14px 90px;}
+  .tabpanel.active{display:block;}
+
+  /* Cards */
+  .card{
+    background:var(--panel);
+    border-radius:16px;
+    border:1px solid var(--line);
+    padding:14px;
+    margin-bottom:12px;
+    box-shadow:0 1px 3px rgba(0,0,0,.03);
+  }
+  .ai-banner{
+    background:linear-gradient(135deg,#3aa17e,#2c8266);
+    color:#fff;
+    border-radius:16px;
+    padding:14px 16px;
+    margin-bottom:14px;
+    position:relative;
+    overflow:hidden;
+  }
+  .ai-banner .tag{
+    font-size:10px;
+    background:rgba(255,255,255,.25);
+    display:inline-block;
+    padding:2px 8px;
+    border-radius:10px;
+    margin-bottom:6px;
+  }
+  .ai-banner h3{margin:0 0 6px;font-size:14px;}
+  .ai-banner p{margin:0 0 10px;font-size:12px;opacity:.9;line-height:1.5;}
+  .ai-banner .actions{display:flex;gap:8px;}
+  .btn-mini{
+    border:none;
+    border-radius:20px;
+    padding:7px 14px;
+    font-size:12px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .btn-mini.primary{background:#fff;color:#2c8266;}
+  .btn-mini.ghost{background:rgba(255,255,255,.15);color:#fff;}
+
+  .post-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .avatar{
+    width:36px;height:36px;border-radius:50%;
+    background:var(--accent-soft);
+    display:flex;align-items:center;justify-content:center;
+    font-size:18px;flex-shrink:0;
+  }
+  .post-head .name{font-size:13px;font-weight:700;}
+  .post-head .meta{font-size:11px;color:var(--sub);}
+  .photo-block{
+    height:150px;border-radius:12px;
+    background:linear-gradient(135deg,#f6ead9,#f0d9bd);
+    display:flex;align-items:center;justify-content:center;
+    font-size:44px;margin-bottom:10px;
+  }
+  .store-line{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+  .store-line .store{font-weight:700;font-size:14px;}
+  .stars{color:var(--gold);font-size:13px;letter-spacing:1px;}
+  .comment{font-size:13px;color:var(--ink);margin:4px 0 10px;line-height:1.5;}
+  .price-tag{font-size:11px;color:var(--sub);}
+  .post-actions{display:flex;gap:14px;align-items:center;border-top:1px solid var(--line);padding-top:10px;margin-top:2px;}
+  .like-btn{
+    display:flex;align-items:center;gap:5px;
+    border:1px solid var(--line);background:#fff;
+    border-radius:20px;padding:6px 12px;font-size:12px;cursor:pointer;color:var(--ink);
+    transition:.15s;
+  }
+  .like-btn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
+  .comment-count{font-size:12px;color:var(--sub);display:flex;align-items:center;gap:4px;}
+
+  .section-title{font-size:13px;font-weight:700;color:var(--sub);margin:4px 0 10px;letter-spacing:.5px;}
+
+  /* diary */
+  .throwback{
+    background:var(--accent-soft);border:1px dashed var(--accent);
+    border-radius:14px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:#a84c22;
+  }
+  .diary-row{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);}
+  .diary-row:last-child{border-bottom:none;}
+  .diary-thumb{width:46px;height:46px;border-radius:10px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+  .diary-info .store{font-size:13px;font-weight:700;}
+  .diary-info .date{font-size:11px;color:var(--sub);}
+
+  /* recruit */
+  .recruit-card .top{display:flex;justify-content:space-between;align-items:flex-start;}
+  .recruit-card .time{font-size:11px;color:var(--accent);font-weight:700;}
+  .recruit-card .title{font-size:15px;font-weight:700;margin:4px 0 8px;}
+  .progress-wrap{background:var(--line);border-radius:8px;height:8px;overflow:hidden;margin:8px 0;}
+  .progress-bar{height:100%;background:var(--accent2);border-radius:8px;}
+  .recruit-foot{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--sub);}
+  .join-btn{
+    border:none;background:var(--accent);color:#fff;font-weight:700;
+    border-radius:20px;padding:8px 16px;font-size:12px;cursor:pointer;
+  }
+  .join-btn.joined{background:var(--accent2);}
+  .avatars-mini{display:flex;}
+  .avatars-mini span{
+    width:22px;height:22px;border-radius:50%;background:var(--accent-soft);
+    display:flex;align-items:center;justify-content:center;font-size:11px;
+    border:2px solid #fff;margin-left:-6px;
+  }
+  .avatars-mini span:first-child{margin-left:0;}
+
+  .fab{
+    position:absolute;right:18px;bottom:100px;
+    width:52px;height:52px;border-radius:50%;
+    background:var(--accent);color:#fff;border:none;
+    font-size:26px;box-shadow:0 6px 16px rgba(255,122,69,.5);
+    cursor:pointer;z-index:20;
+  }
+
+  /* radar */
+  .radar-item{
+    display:flex;gap:10px;align-items:flex-start;
+    background:var(--panel);border:1px solid var(--line);
+    border-radius:14px;padding:10px 12px;margin-bottom:8px;
+    opacity:0;animation:fadeIn .4s forwards;
+  }
+  @keyframes fadeIn{to{opacity:1;}}
+  .radar-dot{width:8px;height:8px;border-radius:50%;background:var(--accent2);margin-top:5px;flex-shrink:0;box-shadow:0 0 0 4px var(--accent2-soft);}
+  .radar-item .txt{font-size:12.5px;line-height:1.5;}
+  .radar-item .t{font-size:10px;color:var(--sub);}
+  .live-dot{
+    display:inline-block;width:7px;height:7px;border-radius:50%;background:#e14b4b;
+    margin-right:5px;animation:pulse 1.2s infinite;
+  }
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+  /* ranking */
+  .rank-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);}
+  .rank-row:last-child{border-bottom:none;}
+  .rank-num{width:22px;font-weight:800;color:var(--sub);font-size:13px;}
+  .rank-row:nth-child(1) .rank-num{color:var(--gold);}
+  .rank-bar-wrap{flex:1;}
+  .rank-bar-wrap .name{font-size:12.5px;font-weight:600;margin-bottom:3px;}
+  .rank-bar-bg{background:var(--line);border-radius:6px;height:6px;}
+  .rank-bar-fg{background:var(--accent);height:100%;border-radius:6px;}
+  .rank-count{font-size:11px;color:var(--sub);width:44px;text-align:right;}
+
+  .badges-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .badge{
+    text-align:center;font-size:10px;color:var(--sub);
+  }
+  .badge .icon{
+    width:52px;height:52px;border-radius:14px;background:var(--panel);
+    border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
+    font-size:24px;margin:0 auto 4px;
+  }
+  .badge.earned .icon{background:linear-gradient(135deg,#ffe4b8,#ffcf7a);border-color:var(--gold);}
+  .badge.locked .icon{filter:grayscale(1);opacity:.4;}
+  .badge.earned{color:var(--ink);font-weight:600;}
+
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+  .stat-box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;text-align:center;}
+  .stat-box .num{font-size:20px;font-weight:800;color:var(--accent);}
+  .stat-box .lbl{font-size:10.5px;color:var(--sub);margin-top:2px;}
+
+  /* bottom nav */
+  nav.tabbar{
+    position:absolute;left:0;right:0;bottom:0;
+    background:rgba(255,255,255,.96);
+    backdrop-filter:blur(6px);
+    border-top:1px solid var(--line);
+    display:flex;
+    padding:8px 4px 14px;
+    z-index:10;
+  }
+  nav.tabbar button{
+    flex:1;background:none;border:none;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:2px;
+    font-size:9.5px;color:var(--sub);padding:4px 0;
+  }
+  nav.tabbar button .ic{font-size:19px;}
+  nav.tabbar button.active{color:var(--accent);font-weight:700;}
+
+  /* modal */
+  .modal-overlay{
+    position:absolute;inset:0;background:rgba(0,0,0,.4);
+    display:none;align-items:flex-end;z-index:30;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal-sheet{
+    background:#fff;width:100%;border-radius:20px 20px 0 0;
+    padding:18px 18px 24px;max-height:80%;overflow-y:auto;
+  }
+  .modal-sheet h3{margin:0 0 12px;font-size:15px;}
+  .modal-sheet label{font-size:11px;color:var(--sub);display:block;margin:10px 0 4px;}
+  .modal-sheet input, .modal-sheet select, .modal-sheet textarea{
+    width:100%;border:1px solid var(--line);border-radius:10px;padding:9px 10px;font-size:13px;font-family:inherit;
+  }
+  .star-pick{display:flex;gap:4px;font-size:20px;cursor:pointer;color:var(--line);margin-top:4px;}
+  .star-pick span.on{color:var(--gold);}
+  .modal-actions{display:flex;gap:10px;margin-top:16px;}
+  .modal-actions button{
+    flex:1;padding:11px;border-radius:12px;border:none;font-weight:700;font-size:13px;cursor:pointer;
+  }
+  .modal-actions .cancel{background:var(--line);color:var(--ink);}
+  .modal-actions .submit{background:var(--accent);color:#fff;}
+  .toast{
+    position:absolute;left:50%;bottom:110px;transform:translateX(-50%);
+    background:#2c2a26;color:#fff;font-size:12px;padding:9px 16px;border-radius:20px;
+    opacity:0;pointer-events:none;transition:.25s;z-index:40;white-space:nowrap;
+  }
+  .toast.show{opacity:1;bottom:120px;}
+
+  .hint{
+    text-align:center;color:#8a8378;font-size:11px;margin-top:14px;max-width:390px;
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<div>
+  <div class="phone">
+    <div class="statusbar"><span>9:41</span><span>Lunch Connect</span><span>🔋</span></div>
+    <header class="app">
+      <h1><span class="logo-dot">🍜</span> <span id="headerTitle">Lunch Connect</span></h1>
+      <div class="sub" id="headerSub">ランチでつながる社内SNS</div>
+      <div class="profile-chip" id="profileChip" onclick="openProfileEdit()">
+        <div class="av" id="profileChipAv">🙂</div>
+        <div class="nm" id="profileChipNm">未登録</div>
+      </div>
+    </header>
+
+    <div class="register-overlay" id="registerOverlay">
+      <button class="close-x" id="registerCloseX" onclick="closeProfileEdit()" style="display:none;">✕</button>
+      <div class="emoji-top">🍜</div>
+      <h2 id="registerTitle">はじめまして！</h2>
+      <div class="desc" id="registerDesc">Lunch Connectを使うには、まず簡単なプロフィール登録が必要です。名前だけですぐ始められます。</div>
+
+      <label>お名前</label>
+      <input type="text" id="reg-name" placeholder="例）田中 太郎">
+      <div class="field-error" id="reg-name-error">お名前を入力してください</div>
+
+      <label>プロフィール画像（任意）</label>
+      <div class="photo-upload" onclick="document.getElementById('reg-photo-file').click()">
+        <div class="photo-preview" id="regPhotoPreview">🙂</div>
+        <div class="photo-upload-txt">タップして画像を選択</div>
+      </div>
+      <input type="file" id="reg-photo-file" accept="image/*" style="display:none;">
+
+      <button class="submit-btn" id="registerSubmitBtn" onclick="submitRegister()">登録してはじめる</button>
+      <button class="logout-btn" id="registerLogoutBtn" onclick="logoutProfile()" style="display:none;">ログアウト（アカウントを切り替える）</button>
+    </div>
+
+    <div class="screen">
+      <!-- HOME -->
+      <section class="tabpanel active" id="tab-home">
+        <div class="ai-banner">
+          <div class="tag">AIマッチング</div>
+          <h3>今日は和食派3人・ラーメン派4人です</h3>
+          <p>この4人でどうですか？「〇〇食堂」なら両方の希望に近いお店です。</p>
+          <div class="actions">
+            <button class="btn-mini primary" onclick="toast('マッチング提案に参加しました')">この提案に乗る</button>
+            <button class="btn-mini ghost" onclick="toast('提案を見送りました')">今日は見送る</button>
+          </div>
+        </div>
+        <div class="section-title">今日のランチタイムライン</div>
+        <div id="feed"></div>
+      </section>
+
+      <!-- DIARY -->
+      <section class="tabpanel" id="tab-diary">
+        <div class="throwback">📅 去年の今日は <b>「一風堂」</b> で豚骨ラーメンを食べていました。</div>
+        <div class="section-title">ランチ日記</div>
+        <div class="card" id="diaryList"></div>
+      </section>
+
+      <!-- RECRUIT -->
+      <section class="tabpanel" id="tab-recruit">
+        <div class="section-title">ランチ募集中</div>
+        <div id="recruitList"></div>
+      </section>
+
+      <!-- RADAR -->
+      <section class="tabpanel" id="tab-radar">
+        <div class="section-title"><span class="live-dot"></span>今日のランチレーダー</div>
+        <div id="radarList"></div>
+      </section>
+
+      <!-- RANKING -->
+      <section class="tabpanel" id="tab-ranking">
+        <div class="stat-grid">
+          <div class="stat-box"><div class="num">78%</div><div class="lbl">今月の利用率</div></div>
+          <div class="stat-box"><div class="num">34%</div><div class="lbl">部署交流率</div></div>
+        </div>
+        <div class="section-title">今月の人気店ランキング</div>
+        <div class="card" id="rankList"></div>
+        <div class="section-title">バッジコレクション</div>
+        <div class="card"><div class="badges-grid" id="badgeGrid"></div></div>
+      </section>
+    </div>
+
+    <button class="fab" onclick="openModal()">＋</button>
+
+    <nav class="tabbar" id="tabbar">
+      <button data-tab="home" class="active"><span class="ic">🏠</span>ホーム</button>
+      <button data-tab="diary"><span class="ic">📔</span>日記</button>
+      <button data-tab="recruit"><span class="ic">📣</span>募集</button>
+      <button data-tab="radar"><span class="ic">📡</span>レーダー</button>
+      <button data-tab="ranking"><span class="ic">🏆</span>ランキング</button>
+    </nav>
+
+    <div class="toast" id="toast"></div>
+
+    <div class="modal-overlay" id="postModal">
+      <div class="modal-sheet">
+        <h3>ランチ日記を投稿</h3>
+        <label>店名</label>
+        <input id="f-store" placeholder="例）〇〇食堂">
+        <label>写真（絵文字で代用）</label>
+        <input id="f-photo" placeholder="🍜 🍛 🍣 🥩 など" value="🍜">
+        <label>評価</label>
+        <div class="star-pick" id="starPick">
+          <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
+        </div>
+        <label>一言コメント</label>
+        <textarea id="f-comment" rows="2" placeholder="チャーシューが絶品！"></textarea>
+        <label>お店のURL</label>
+        <input id="f-url" type="url" placeholder="例）https://example.com">
+        <div class="modal-actions">
+          <button class="cancel" onclick="closeModal()">キャンセル</button>
+          <button class="submit" onclick="submitPost()">投稿する</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://yyzjdkejycvlrevronfg.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_WOW8Cg2nxYXmg45tjjorGw_y9Fi9zQc';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const LIKED_KEY = 'lunchConnectLikedPosts';
+
+function getLikedIds(){
+  try{ return new Set(JSON.parse(localStorage.getItem(LIKED_KEY) || '[]')); }
+  catch(e){ return new Set(); }
+}
+function setLikedIds(ids){
+  localStorage.setItem(LIKED_KEY, JSON.stringify([...ids]));
+}
+
+function rowToPost(row){
+  return {
+    id: row.id,
+    name: row.name,
+    dept: '',
+    avatar: '🙂',
+    avatarImg: row.avatar_url || null,
+    store: row.store,
+    stars: row.stars,
+    comment: row.comment,
+    url: row.url,
+    photo: row.photo,
+    likes: row.likes,
+    liked: getLikedIds().has(row.id),
+    comments: 0,
+    createdAt: row.created_at,
+  };
+}
+
+let feedData = [];
+
+async function loadFeed(){
+  const { data, error } = await sb.from('posts').select('*').order('created_at', { ascending: false });
+  if(error){ console.error(error); return; }
+  feedData = data.map(rowToPost);
+  renderFeed();
+  renderDiary();
+}
+
+const recruitData = [
+  {time:"今日 12:15", title:"焼肉行く人？", store:"炭火焼肉 龍", need:4, joined:1, joinedUsers:["🧑"]},
+  {time:"今日 12:00", title:"新しいパスタ屋、気になりませんか", store:"Trattoria Sole", need:3, joined:2, joinedUsers:["👩","🧑‍💼"]},
+];
+
+const radarSeed = [
+  {t:"たった今", txt:"<b>田中さん</b>が今から<b>〇〇食堂</b>へ行きます"},
+  {t:"1分前", txt:"炭火焼肉 龍、<b>あと2人</b>参加できます"},
+  {t:"3分前", txt:"<b>営業部3人</b>がランチ中です"},
+  {t:"5分前", txt:"今日は部署を超えたランチが<b>5組</b>成立しました"},
+];
+const radarExtra = [
+  {txt:"<b>開発部</b>と<b>経理部</b>の合同ランチが成立しました"},
+  {txt:"<b>高橋さん</b>が「△△食堂」に向かっています"},
+  {txt:"焼肉 龍、募集枠が<b>あと1人</b>になりました"},
+  {txt:"<b>マーケ部2人</b>がカレー工房でランチ中です"},
+];
+
+const rankData = [
+  {store:"〇〇食堂", count:24},
+  {store:"△△カレー", count:19},
+  {store:"炭火焼肉 龍", count:15},
+  {store:"寿司処 一心", count:9},
+];
+
+const badgeData = [
+  {icon:"🍜", name:"ラーメン王", earned:true},
+  {icon:"🍛", name:"カレー博士", earned:true},
+  {icon:"🏆", name:"100店舗制覇", earned:false},
+  {icon:"📅", name:"毎週ランチ", earned:true},
+  {icon:"🤝", name:"部署越え王", earned:false},
+  {icon:"📸", name:"投稿10回", earned:true},
+  {icon:"⭐", name:"高評価職人", earned:false},
+  {icon:"🎯", name:"AI提案マスター", earned:false},
+];
+
+function renderFeed(){
+  const el = document.getElementById('feed');
+  el.innerHTML = feedData.map((p,i)=>`
+    <div class="card">
+      <div class="post-head">
+        <div class="avatar">${avatarHtml(p)}</div>
+        <div>
+          <div class="name">${p.name}</div>
+          <div class="meta">${p.dept ? p.dept+'・' : ''}さきほど</div>
+        </div>
+      </div>
+      <div class="photo-block">${p.photo}</div>
+      <div class="store-line">
+        <div class="store">${p.store}</div>
+        <div class="stars">${'★'.repeat(p.stars)}${'☆'.repeat(5-p.stars)}</div>
+      </div>
+      <div class="comment">${p.comment}</div>
+      ${p.url ? `<a class="price-tag" href="${p.url}" target="_blank" rel="noopener">🔗 お店のサイトを見る</a>` : ''}
+      <div class="post-actions">
+        <button class="like-btn ${p.liked?'on':''}" onclick="toggleLike(${i})">🙋 行ってみたい ${p.likes}人</button>
+        <div class="comment-count">💬 ${p.comments}件</div>
+      </div>
+    </div>
+  `).join('');
+}
+async function toggleLike(i){
+  const p = feedData[i];
+  const delta = p.liked ? -1 : 1;
+  p.liked = !p.liked;
+  p.likes += delta;
+  renderFeed();
+  const likedIds = getLikedIds();
+  if(p.liked) likedIds.add(p.id); else likedIds.delete(p.id);
+  setLikedIds(likedIds);
+  const { error } = await sb.rpc('increment_likes', { post_id: p.id, delta });
+  if(error) console.error(error);
+}
+
+function renderDiary(){
+  const diaryData = feedData.map(p => ({
+    photo: p.photo,
+    store: p.store,
+    date: p.createdAt ? new Date(p.createdAt).toLocaleString('ja-JP') : '',
+  }));
+  document.getElementById('diaryList').innerHTML = diaryData.map(d=>`
+    <div class="diary-row">
+      <div class="diary-thumb">${d.photo}</div>
+      <div class="diary-info">
+        <div class="store">${d.store}</div>
+        <div class="date">${d.date}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderRecruit(){
+  document.getElementById('recruitList').innerHTML = recruitData.map((r,i)=>`
+    <div class="card recruit-card">
+      <div class="top">
+        <div>
+          <div class="time">${r.time}</div>
+          <div class="title">${r.title}</div>
+        </div>
+      </div>
+      <div class="price-tag">📍 ${r.store}</div>
+      <div class="progress-wrap"><div class="progress-bar" style="width:${Math.min(100, r.joined/r.need*100)}%"></div></div>
+      <div class="recruit-foot">
+        <div class="avatars-mini">${r.joinedUsers.map(u=>`<span>${u}</span>`).join('')}</div>
+        <span>${r.joined}/${r.need}人 参加中</span>
+        <button class="join-btn ${r.joinedYou?'joined':''}" onclick="joinRecruit(${i})">${r.joinedYou?'参加済み':'参加する'}</button>
+      </div>
+    </div>
+  `).join('');
+}
+function joinRecruit(i){
+  const r = recruitData[i];
+  if(r.joinedYou) return;
+  r.joinedYou = true;
+  r.joined += 1;
+  r.joinedUsers.push("🙂");
+  renderRecruit();
+  toast(`「${r.title}」に参加しました`);
+}
+
+function renderRadarItem(item){
+  const el = document.getElementById('radarList');
+  const div = document.createElement('div');
+  div.className = 'radar-item';
+  div.innerHTML = `<div class="radar-dot"></div><div><div class="txt">${item.txt}</div><div class="t">${item.t||'たった今'}</div></div>`;
+  el.prepend(div);
+}
+function renderRadar(){
+  document.getElementById('radarList').innerHTML='';
+  radarSeed.forEach(renderRadarItem);
+}
+let radarTimer=null;
+function startRadarLive(){
+  if(radarTimer) return;
+  radarTimer = setInterval(()=>{
+    const item = radarExtra[Math.floor(Math.random()*radarExtra.length)];
+    renderRadarItem({txt:item.txt, t:'たった今'});
+  }, 4000);
+}
+
+function renderRanking(){
+  const max = Math.max(...rankData.map(r=>r.count));
+  document.getElementById('rankList').innerHTML = rankData.map((r,i)=>`
+    <div class="rank-row">
+      <div class="rank-num">${i+1}</div>
+      <div class="rank-bar-wrap">
+        <div class="name">${r.store}</div>
+        <div class="rank-bar-bg"><div class="rank-bar-fg" style="width:${r.count/max*100}%"></div></div>
+      </div>
+      <div class="rank-count">${r.count}人</div>
+    </div>
+  `).join('');
+  document.getElementById('badgeGrid').innerHTML = badgeData.map(b=>`
+    <div class="badge ${b.earned?'earned':'locked'}">
+      <div class="icon">${b.icon}</div>
+      ${b.name}
+    </div>
+  `).join('');
+}
+
+// tab switching
+document.getElementById('tabbar').addEventListener('click', e=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  const tab = btn.dataset.tab;
+  document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('active', b===btn));
+  document.querySelectorAll('.tabpanel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  const titles = {home:['Lunch Connect','ランチでつながる社内SNS'], diary:['ランチ日記','あなたの食の記録'], recruit:['ランチ募集','一緒に行く人を探す'], radar:['ランチレーダー','いまの社内ランチ状況'], ranking:['ランキング & バッジ','みんなの人気店とあなたの実績']};
+  document.getElementById('headerTitle').textContent = titles[tab][0];
+  document.getElementById('headerSub').textContent = titles[tab][1];
+  if(tab==='radar') startRadarLive();
+});
+
+// modal
+let selectedStars = 5;
+function openModal(){
+  document.getElementById('postModal').classList.add('open');
+}
+function closeModal(){
+  document.getElementById('postModal').classList.remove('open');
+}
+document.getElementById('starPick').addEventListener('click', e=>{
+  const span = e.target.closest('span');
+  if(!span) return;
+  selectedStars = parseInt(span.dataset.v);
+  updateStarPick();
+});
+function updateStarPick(){
+  document.querySelectorAll('#starPick span').forEach(s=>{
+    s.classList.toggle('on', parseInt(s.dataset.v) <= selectedStars);
+  });
+}
+updateStarPick();
+
+async function submitPost(){
+  const store = document.getElementById('f-store').value.trim() || '名称未設定のお店';
+  const photo = document.getElementById('f-photo').value.trim() || '🍽️';
+  const comment = document.getElementById('f-comment').value.trim() || '(コメントなし)';
+  const url = document.getElementById('f-url').value.trim();
+  const row = {
+    name: currentProfile.name,
+    avatar_url: currentProfile.photo || null,
+    store, stars: selectedStars, comment, url, photo,
+  };
+  const { data, error } = await sb.from('posts').insert(row).select().single();
+  if(error){ console.error(error); toast('投稿に失敗しました'); return; }
+  feedData.unshift(rowToPost(data));
+  renderFeed();
+  renderDiary();
+  closeModal();
+  document.getElementById('f-store').value='';
+  document.getElementById('f-comment').value='';
+  document.getElementById('f-url').value='';
+  toast('ランチ日記を投稿しました');
+}
+
+function avatarHtml(p){
+  if(p.avatarImg) return `<img src="${p.avatarImg}" alt="">`;
+  return p.avatar || '🙂';
+}
+
+/* ---- account / profile (localStorage, no password – kept intentionally simple) ---- */
+const PROFILE_KEY = 'lunchConnectProfile';
+let currentProfile = null;
+let regPhotoData = null;
+let editMode = false;
+
+function loadProfile(){
+  try{
+    const raw = localStorage.getItem(PROFILE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+function saveProfileToStorage(p){
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
+}
+
+function updateHeaderChip(){
+  const av = document.getElementById('profileChipAv');
+  const nm = document.getElementById('profileChipNm');
+  if(currentProfile){
+    av.innerHTML = currentProfile.photo ? `<img src="${currentProfile.photo}" alt="">` : '🙂';
+    nm.textContent = currentProfile.name;
+  }else{
+    av.innerHTML = '🙂';
+    nm.textContent = '未登録';
+  }
+}
+
+let regPhotoFile = null;
+document.getElementById('reg-photo-file').addEventListener('change', e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  regPhotoFile = file;
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    document.getElementById('regPhotoPreview').innerHTML = `<img src="${ev.target.result}" alt="">`;
+  };
+  reader.readAsDataURL(file);
+});
+
+function openRegisterGate(){
+  editMode = false;
+  document.getElementById('registerTitle').textContent = 'はじめまして！';
+  document.getElementById('registerDesc').textContent = 'Lunch Connectを使うには、まず簡単なプロフィール登録が必要です。名前だけですぐ始められます。';
+  document.getElementById('registerSubmitBtn').textContent = '登録してはじめる';
+  document.getElementById('registerCloseX').style.display = 'none';
+  document.getElementById('registerLogoutBtn').style.display = 'none';
+  document.getElementById('reg-name').value = '';
+  regPhotoData = null;
+  regPhotoFile = null;
+  document.getElementById('regPhotoPreview').innerHTML = '🙂';
+  document.getElementById('registerOverlay').classList.remove('hidden');
+}
+
+function openProfileEdit(){
+  editMode = true;
+  document.getElementById('registerTitle').textContent = 'プロフィール編集';
+  document.getElementById('registerDesc').textContent = '名前やプロフィール画像を変更できます。';
+  document.getElementById('registerSubmitBtn').textContent = '保存する';
+  document.getElementById('registerCloseX').style.display = 'block';
+  document.getElementById('registerLogoutBtn').style.display = 'block';
+  document.getElementById('reg-name').value = currentProfile.name;
+  regPhotoData = currentProfile.photo;
+  regPhotoFile = null;
+  document.getElementById('regPhotoPreview').innerHTML = currentProfile.photo ? `<img src="${currentProfile.photo}" alt="">` : '🙂';
+  document.getElementById('registerOverlay').classList.remove('hidden');
+}
+
+function closeProfileEdit(){
+  document.getElementById('registerOverlay').classList.add('hidden');
+}
+
+async function submitRegister(){
+  const name = document.getElementById('reg-name').value.trim();
+  if(!name){
+    document.getElementById('reg-name-error').style.display = 'block';
+    return;
+  }
+  document.getElementById('reg-name-error').style.display = 'none';
+  let photoUrl = regPhotoData;
+  if(regPhotoFile){
+    const btn = document.getElementById('registerSubmitBtn');
+    const prevLabel = btn.textContent;
+    btn.textContent = 'アップロード中...';
+    const path = `${Date.now()}-${regPhotoFile.name}`;
+    const { error: uploadError } = await sb.storage.from('avatars').upload(path, regPhotoFile);
+    btn.textContent = prevLabel;
+    if(uploadError){
+      console.error(uploadError);
+      toast('画像のアップロードに失敗しました');
+      return;
+    }
+    photoUrl = sb.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+  }
+  currentProfile = {name, photo: photoUrl};
+  saveProfileToStorage(currentProfile);
+  regPhotoFile = null;
+  updateHeaderChip();
+  document.getElementById('registerOverlay').classList.add('hidden');
+  toast(editMode ? 'プロフィールを更新しました' : `ようこそ、${name}さん！`);
+}
+
+function logoutProfile(){
+  localStorage.removeItem(PROFILE_KEY);
+  currentProfile = null;
+  updateHeaderChip();
+  openRegisterGate();
+  toast('ログアウトしました');
+}
+
+function initProfile(){
+  currentProfile = loadProfile();
+  updateHeaderChip();
+  if(!currentProfile){
+    openRegisterGate();
+  }else{
+    document.getElementById('registerOverlay').classList.add('hidden');
+  }
+}
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+renderFeed();
+renderDiary();
+renderRecruit();
+renderRadar();
+renderRanking();
+initProfile();
+loadFeed();
+setInterval(loadFeed, 20000);
+</script>
+
+</body>
+</html>
