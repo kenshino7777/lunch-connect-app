@@ -473,6 +473,8 @@
         <input id="rc-store" placeholder="例）炭火焼肉 龍">
         <label>募集人数</label>
         <input id="rc-need" type="number" min="1" value="4">
+        <label>集合時刻</label>
+        <input id="rc-time" type="time">
         <div class="modal-actions">
           <button class="cancel" onclick="closeRecruitModal()">キャンセル</button>
           <button class="submit" onclick="submitRecruit()">募集する</button>
@@ -538,7 +540,7 @@ function rowToRecruit(row){
   const joins = row.recruit_joins || [];
   return {
     id: row.id,
-    time: new Date(row.created_at).toLocaleString('ja-JP'),
+    time: row.meet_time ? `🕐 ${row.meet_time}〜` : '時刻未定',
     title: row.title,
     store: row.store,
     need: row.need,
@@ -682,11 +684,12 @@ async function submitRecruit(){
   const title = document.getElementById('rc-title').value.trim();
   const store = document.getElementById('rc-store').value.trim();
   const need = parseInt(document.getElementById('rc-need').value, 10);
-  if(!title || !store || !need || need < 1){
-    toast('タイトル・お店・人数を入力してください');
+  const meetTime = document.getElementById('rc-time').value;
+  if(!title || !store || !need || need < 1 || !meetTime){
+    toast('タイトル・お店・人数・集合時刻を入力してください');
     return;
   }
-  const { data, error } = await sb.from('recruits').insert({ title, store, need }).select().single();
+  const { data, error } = await sb.from('recruits').insert({ title, store, need, meet_time: meetTime }).select().single();
   if(error){ console.error(error); toast('募集の作成に失敗しました'); return; }
   recruitData.unshift(rowToRecruit({ ...data, recruit_joins: [] }));
   renderRecruit();
@@ -694,6 +697,7 @@ async function submitRecruit(){
   document.getElementById('rc-title').value = '';
   document.getElementById('rc-store').value = '';
   document.getElementById('rc-need').value = '4';
+  document.getElementById('rc-time').value = '';
   toast('ランチ募集を作成しました');
 }
 
