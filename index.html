@@ -100,6 +100,13 @@
   }
   .photo-preview img{width:100%;height:100%;object-fit:cover;}
   .photo-upload-txt{font-size:11px;color:var(--accent);font-weight:600;}
+  .post-photo-preview{
+    width:100%;height:150px;border-radius:12px;background:linear-gradient(135deg,#f6ead9,#f0d9bd);
+    border:2px dashed var(--line);display:flex;align-items:center;justify-content:center;
+    font-size:36px;overflow:hidden;
+  }
+  .post-photo-preview img{width:100%;height:100%;object-fit:cover;}
+  .del-btn{background:none;border:none;color:#c0392b;font-size:11px;cursor:pointer;padding:4px 0;}
   .register-overlay .submit-btn{
     width:100%;margin-top:22px;padding:13px;border:none;border-radius:12px;
     background:var(--accent);color:#fff;font-weight:700;font-size:14px;cursor:pointer;
@@ -176,8 +183,9 @@
     height:150px;border-radius:12px;
     background:linear-gradient(135deg,#f6ead9,#f0d9bd);
     display:flex;align-items:center;justify-content:center;
-    font-size:44px;margin-bottom:10px;
+    font-size:44px;margin-bottom:10px;overflow:hidden;
   }
+  .photo-block img{width:100%;height:100%;object-fit:cover;}
   .store-line{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
   .store-line .store{font-weight:700;font-size:14px;}
   .stars{color:var(--gold);font-size:13px;letter-spacing:1px;}
@@ -202,7 +210,8 @@
   }
   .diary-row{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);}
   .diary-row:last-child{border-bottom:none;}
-  .diary-thumb{width:46px;height:46px;border-radius:10px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+  .diary-thumb{width:46px;height:46px;border-radius:10px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;overflow:hidden;}
+  .diary-thumb img{width:100%;height:100%;object-fit:cover;}
   .diary-info .store{font-size:13px;font-weight:700;}
   .diary-info .date{font-size:11px;color:var(--sub);}
 
@@ -434,8 +443,12 @@
         <h3>ランチ日記を投稿</h3>
         <label>店名</label>
         <input id="f-store" placeholder="例）〇〇食堂">
-        <label>写真（絵文字で代用）</label>
-        <input id="f-photo" placeholder="🍜 🍛 🍣 🥩 など" value="🍜">
+        <label>写真</label>
+        <div class="photo-upload" onclick="document.getElementById('f-photo-file').click()" style="width:100%;">
+          <div class="post-photo-preview" id="postPhotoPreview">📷</div>
+          <div class="photo-upload-txt">タップして写真を選択</div>
+        </div>
+        <input type="file" id="f-photo-file" accept="image/*" style="display:none;">
         <label>評価</label>
         <div class="star-pick" id="starPick">
           <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
@@ -586,7 +599,7 @@ function renderFeed(){
           <div class="meta">${p.dept ? p.dept+'・' : ''}さきほど</div>
         </div>
       </div>
-      <div class="photo-block">${p.photo}</div>
+      <div class="photo-block">${p.photo ? `<img src="${p.photo}" alt="">` : ''}</div>
       <div class="store-line">
         <div class="store">${p.store}</div>
         <div class="stars">${'★'.repeat(p.stars)}${'☆'.repeat(5-p.stars)}</div>
@@ -597,6 +610,7 @@ function renderFeed(){
         <button class="like-btn ${p.liked?'on':''}" onclick="toggleLike(${i})">🙋 行ってみたい ${p.likes}人</button>
         <div class="comment-count">💬 ${p.comments}件</div>
       </div>
+      ${currentProfile && p.name === currentProfile.name ? `<button class="del-btn" onclick="deletePost(${i})">🗑 削除</button>` : ''}
     </div>
   `).join('');
 }
@@ -621,7 +635,7 @@ function renderDiary(){
   }));
   document.getElementById('diaryList').innerHTML = diaryData.map(d=>`
     <div class="diary-row">
-      <div class="diary-thumb">${d.photo}</div>
+      <div class="diary-thumb">${d.photo ? `<img src="${d.photo}" alt="">` : ''}</div>
       <div class="diary-info">
         <div class="store">${d.store}</div>
         <div class="date">${d.date}</div>
@@ -745,6 +759,7 @@ function openModal(){
     openRecruitModal();
     return;
   }
+  resetPostPhoto();
   document.getElementById('postModal').classList.add('open');
 }
 function closeModal(){
@@ -769,11 +784,40 @@ function updateStarPick(){
 }
 updateStarPick();
 
+let postPhotoFile = null;
+document.getElementById('f-photo-file').addEventListener('change', e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  postPhotoFile = file;
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    document.getElementById('postPhotoPreview').innerHTML = `<img src="${ev.target.result}" alt="">`;
+  };
+  reader.readAsDataURL(file);
+});
+
+function resetPostPhoto(){
+  postPhotoFile = null;
+  document.getElementById('postPhotoPreview').innerHTML = '📷';
+  document.getElementById('f-photo-file').value = '';
+}
+
 async function submitPost(){
   const store = document.getElementById('f-store').value.trim() || '名称未設定のお店';
-  const photo = document.getElementById('f-photo').value.trim() || '🍽️';
   const comment = document.getElementById('f-comment').value.trim() || '(コメントなし)';
   const url = document.getElementById('f-url').value.trim();
+  if(!postPhotoFile){
+    toast('写真を選択してください');
+    return;
+  }
+  const btn = document.querySelector('#postModal .submit');
+  const prevLabel = btn.textContent;
+  btn.textContent = 'アップロード中...';
+  const path = `${Date.now()}-${postPhotoFile.name}`;
+  const { error: uploadError } = await sb.storage.from('post-photos').upload(path, postPhotoFile);
+  btn.textContent = prevLabel;
+  if(uploadError){ console.error(uploadError); toast('写真のアップロードに失敗しました'); return; }
+  const photo = sb.storage.from('post-photos').getPublicUrl(path).data.publicUrl;
   const row = {
     name: currentProfile.name,
     avatar_url: currentProfile.photo || null,
@@ -788,7 +832,19 @@ async function submitPost(){
   document.getElementById('f-store').value='';
   document.getElementById('f-comment').value='';
   document.getElementById('f-url').value='';
+  resetPostPhoto();
   toast('ランチ日記を投稿しました');
+}
+
+async function deletePost(i){
+  const p = feedData[i];
+  if(!confirm(`「${p.store}」の投稿を削除しますか？`)) return;
+  const { error } = await sb.from('posts').delete().eq('id', p.id);
+  if(error){ console.error(error); toast('削除に失敗しました'); return; }
+  feedData.splice(i, 1);
+  renderFeed();
+  renderDiary();
+  toast('投稿を削除しました');
 }
 
 function avatarHtml(p){
