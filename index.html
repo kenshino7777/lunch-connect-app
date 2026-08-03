@@ -450,6 +450,22 @@
         </div>
       </div>
     </div>
+
+    <div class="modal-overlay" id="recruitModal">
+      <div class="modal-sheet">
+        <h3>ランチ募集を作成</h3>
+        <label>タイトル</label>
+        <input id="rc-title" placeholder="例）焼肉行く人？">
+        <label>お店</label>
+        <input id="rc-store" placeholder="例）炭火焼肉 龍">
+        <label>募集人数</label>
+        <input id="rc-need" type="number" min="1" value="4">
+        <div class="modal-actions">
+          <button class="cancel" onclick="closeRecruitModal()">キャンセル</button>
+          <button class="submit" onclick="submitRecruit()">募集する</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -496,10 +512,37 @@ async function loadFeed(){
   renderDiary();
 }
 
-const recruitData = [
-  {time:"今日 12:15", title:"焼肉行く人？", store:"炭火焼肉 龍", need:4, joined:1, joinedUsers:["🧑"]},
-  {time:"今日 12:00", title:"新しいパスタ屋、気になりませんか", store:"Trattoria Sole", need:3, joined:2, joinedUsers:["👩","🧑‍💼"]},
-];
+const JOINED_RECRUITS_KEY = 'lunchConnectJoinedRecruits';
+function getJoinedRecruitIds(){
+  try{ return new Set(JSON.parse(localStorage.getItem(JOINED_RECRUITS_KEY) || '[]')); }
+  catch(e){ return new Set(); }
+}
+function setJoinedRecruitIds(ids){
+  localStorage.setItem(JOINED_RECRUITS_KEY, JSON.stringify([...ids]));
+}
+
+function rowToRecruit(row){
+  const joins = row.recruit_joins || [];
+  return {
+    id: row.id,
+    time: new Date(row.created_at).toLocaleString('ja-JP'),
+    title: row.title,
+    store: row.store,
+    need: row.need,
+    joined: joins.length,
+    joinedYou: getJoinedRecruitIds().has(row.id),
+    joinedUsers: joins.map(()=>'🙂'),
+  };
+}
+
+let recruitData = [];
+
+async function loadRecruits(){
+  const { data, error } = await sb.from('recruits').select('*, recruit_joins(name)').order('created_at', { ascending: false });
+  if(error){ console.error(error); return; }
+  recruitData = data.map(rowToRecruit);
+  renderRecruit();
+}
 
 const radarSeed = [
   {t:"たった今", txt:"<b>田中さん</b>が今から<b>〇〇食堂</b>へ行きます"},
@@ -606,14 +649,38 @@ function renderRecruit(){
     </div>
   `).join('');
 }
-function joinRecruit(i){
+async function joinRecruit(i){
   const r = recruitData[i];
   if(r.joinedYou) return;
   r.joinedYou = true;
   r.joined += 1;
   r.joinedUsers.push("🙂");
   renderRecruit();
+  const joinedIds = getJoinedRecruitIds();
+  joinedIds.add(r.id);
+  setJoinedRecruitIds(joinedIds);
+  const { error } = await sb.from('recruit_joins').insert({ recruit_id: r.id, name: currentProfile.name });
+  if(error) console.error(error);
   toast(`「${r.title}」に参加しました`);
+}
+
+async function submitRecruit(){
+  const title = document.getElementById('rc-title').value.trim();
+  const store = document.getElementById('rc-store').value.trim();
+  const need = parseInt(document.getElementById('rc-need').value, 10);
+  if(!title || !store || !need || need < 1){
+    toast('タイトル・お店・人数を入力してください');
+    return;
+  }
+  const { data, error } = await sb.from('recruits').insert({ title, store, need }).select().single();
+  if(error){ console.error(error); toast('募集の作成に失敗しました'); return; }
+  recruitData.unshift(rowToRecruit({ ...data, recruit_joins: [] }));
+  renderRecruit();
+  closeRecruitModal();
+  document.getElementById('rc-title').value = '';
+  document.getElementById('rc-store').value = '';
+  document.getElementById('rc-need').value = '4';
+  toast('ランチ募集を作成しました');
 }
 
 function renderRadarItem(item){
@@ -673,10 +740,21 @@ document.getElementById('tabbar').addEventListener('click', e=>{
 // modal
 let selectedStars = 5;
 function openModal(){
+  const activeTab = document.querySelector('#tabbar button.active')?.dataset.tab || 'home';
+  if(activeTab === 'recruit'){
+    openRecruitModal();
+    return;
+  }
   document.getElementById('postModal').classList.add('open');
 }
 function closeModal(){
   document.getElementById('postModal').classList.remove('open');
+}
+function openRecruitModal(){
+  document.getElementById('recruitModal').classList.add('open');
+}
+function closeRecruitModal(){
+  document.getElementById('recruitModal').classList.remove('open');
 }
 document.getElementById('starPick').addEventListener('click', e=>{
   const span = e.target.closest('span');
@@ -853,7 +931,9 @@ renderRadar();
 renderRanking();
 initProfile();
 loadFeed();
+loadRecruits();
 setInterval(loadFeed, 20000);
+setInterval(loadRecruits, 20000);
 </script>
 
 </body>
