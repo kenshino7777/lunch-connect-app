@@ -362,22 +362,40 @@
     <div class="register-overlay" id="registerOverlay">
       <button class="close-x" id="registerCloseX" onclick="closeProfileEdit()" style="display:none;">✕</button>
       <div class="emoji-top">🍜</div>
-      <h2 id="registerTitle">はじめまして！</h2>
-      <div class="desc" id="registerDesc">Lunch Connectを使うには、まず簡単なプロフィール登録が必要です。名前だけですぐ始められます。</div>
 
-      <label>お名前</label>
-      <input type="text" id="reg-name" placeholder="例）田中 太郎">
-      <div class="field-error" id="reg-name-error">お名前を入力してください</div>
-
-      <label>プロフィール画像（任意）</label>
-      <div class="photo-upload" onclick="document.getElementById('reg-photo-file').click()">
-        <div class="photo-preview" id="regPhotoPreview">🙂</div>
-        <div class="photo-upload-txt">タップして画像を選択</div>
+      <div id="authEmailStep">
+        <h2>はじめまして！</h2>
+        <div class="desc">Lunch Connectを使うには、メールアドレスでログインしてください。ログイン用のリンクをメールでお送りします。</div>
+        <label>メールアドレス</label>
+        <input type="email" id="auth-email" placeholder="例）you@example.com">
+        <div class="field-error" id="auth-email-error">メールアドレスを入力してください</div>
+        <button class="submit-btn" id="authEmailSubmitBtn" onclick="sendMagicLink()">ログインリンクを送る</button>
       </div>
-      <input type="file" id="reg-photo-file" accept="image/*" style="display:none;">
 
-      <button class="submit-btn" id="registerSubmitBtn" onclick="submitRegister()">登録してはじめる</button>
-      <button class="logout-btn" id="registerLogoutBtn" onclick="logoutProfile()" style="display:none;">ログアウト（アカウントを切り替える）</button>
+      <div id="authCheckStep" style="display:none;">
+        <h2>メールを確認してください</h2>
+        <div class="desc" id="authCheckDesc">ログイン用のリンクを送信しました。メール内のリンクをクリックするとログインできます。</div>
+        <button class="submit-btn" onclick="showEmailStep()">別のメールアドレスを使う</button>
+      </div>
+
+      <div id="authNameStep" style="display:none;">
+        <h2 id="registerTitle">はじめまして！</h2>
+        <div class="desc" id="registerDesc">お名前を登録してください。</div>
+
+        <label>お名前</label>
+        <input type="text" id="reg-name" placeholder="例）田中 太郎">
+        <div class="field-error" id="reg-name-error">お名前を入力してください</div>
+
+        <label>プロフィール画像（任意）</label>
+        <div class="photo-upload" onclick="document.getElementById('reg-photo-file').click()">
+          <div class="photo-preview" id="regPhotoPreview">🙂</div>
+          <div class="photo-upload-txt">タップして画像を選択</div>
+        </div>
+        <input type="file" id="reg-photo-file" accept="image/*" style="display:none;">
+
+        <button class="submit-btn" id="registerSubmitBtn" onclick="submitRegister()">登録してはじめる</button>
+        <button class="logout-btn" id="registerLogoutBtn" onclick="logoutProfile()" style="display:none;">ログアウト（アカウントを切り替える）</button>
+      </div>
     </div>
 
     <div class="screen">
@@ -503,6 +521,7 @@ function setLikedIds(ids){
 function rowToPost(row){
   return {
     id: row.id,
+    userId: row.user_id,
     name: row.name,
     dept: '',
     avatar: '🙂',
@@ -522,6 +541,7 @@ function rowToPost(row){
 let feedData = [];
 
 async function loadFeed(){
+  if(!currentUser) return;
   const { data, error } = await sb.from('posts').select('*').order('created_at', { ascending: false });
   if(error){ console.error(error); return; }
   feedData = data.map(rowToPost);
@@ -542,6 +562,7 @@ function rowToRecruit(row){
   const joins = row.recruit_joins || [];
   return {
     id: row.id,
+    userId: row.user_id,
     time: row.meet_time ? `🕐 ${row.meet_time}〜` : '時刻未定',
     meetTimeRaw: row.meet_time || '',
     title: row.title,
@@ -557,6 +578,7 @@ function rowToRecruit(row){
 let recruitData = [];
 
 async function loadRecruits(){
+  if(!currentUser) return;
   const { data, error } = await sb.from('recruits').select('*, recruit_joins(name)').order('created_at', { ascending: false });
   if(error){ console.error(error); return; }
   recruitData = data.map(rowToRecruit);
@@ -616,7 +638,7 @@ function renderFeed(){
         <button class="like-btn ${p.liked?'on':''}" onclick="toggleLike(${i})">🙋 行ってみたい ${p.likes}人</button>
         <div class="comment-count">💬 ${p.comments}件</div>
       </div>
-      ${currentProfile && p.name === currentProfile.name ? `<div class="own-actions"><button class="edit-btn" onclick="openEditPost(${i})">✏️ 編集</button><button class="del-btn" onclick="deletePost(${i})">🗑 削除</button></div>` : ''}
+      ${currentUser && p.userId === currentUser.id ? `<div class="own-actions"><button class="edit-btn" onclick="openEditPost(${i})">✏️ 編集</button><button class="del-btn" onclick="deletePost(${i})">🗑 削除</button></div>` : ''}
     </div>
   `).join('');
 }
@@ -666,7 +688,7 @@ function renderRecruit(){
         <span>${r.joined}/${r.need}人 参加中</span>
         <button class="join-btn ${r.joinedYou?'joined':''}" onclick="joinRecruit(${i})">${r.joinedYou?'参加済み':'参加する'}</button>
       </div>
-      ${currentProfile && r.createdBy === currentProfile.name ? `<div class="own-actions"><button class="edit-btn" onclick="openEditRecruit(${i})">✏️ 編集</button><button class="del-btn" onclick="deleteRecruit(${i})">🗑 削除</button></div>` : ''}
+      ${currentUser && r.userId === currentUser.id ? `<div class="own-actions"><button class="edit-btn" onclick="openEditRecruit(${i})">✏️ 編集</button><button class="del-btn" onclick="deleteRecruit(${i})">🗑 削除</button></div>` : ''}
     </div>
   `).join('');
 }
@@ -680,7 +702,7 @@ async function joinRecruit(i){
   const joinedIds = getJoinedRecruitIds();
   joinedIds.add(r.id);
   setJoinedRecruitIds(joinedIds);
-  const { error } = await sb.from('recruit_joins').insert({ recruit_id: r.id, name: currentProfile.name });
+  const { error } = await sb.from('recruit_joins').insert({ recruit_id: r.id, name: currentProfile.name, user_id: currentUser.id });
   if(error) console.error(error);
   toast(`「${r.title}」に参加しました`);
 }
@@ -709,7 +731,7 @@ async function submitRecruit(){
     return;
   }
 
-  const { data, error } = await sb.from('recruits').insert({ title, store, need, meet_time: meetTime, created_by: currentProfile.name }).select().single();
+  const { data, error } = await sb.from('recruits').insert({ title, store, need, meet_time: meetTime, created_by: currentProfile.name, user_id: currentUser.id }).select().single();
   if(error){ console.error(error); toast('募集の作成に失敗しました'); return; }
   recruitData.unshift(rowToRecruit({ ...data, recruit_joins: [] }));
   renderRecruit();
@@ -924,6 +946,7 @@ async function submitPost(){
   }
 
   const row = {
+    user_id: currentUser.id,
     name: currentProfile.name,
     avatar_url: currentProfile.photo || null,
     store, stars: selectedStars, comment, url, photo,
@@ -957,21 +980,11 @@ function avatarHtml(p){
   return p.avatar || '🙂';
 }
 
-/* ---- account / profile (localStorage, no password – kept intentionally simple) ---- */
-const PROFILE_KEY = 'lunchConnectProfile';
+/* ---- account / profile (Supabase Auth magic link + profiles table) ---- */
 let currentProfile = null;
+let currentUser = null;
 let regPhotoData = null;
 let editMode = false;
-
-function loadProfile(){
-  try{
-    const raw = localStorage.getItem(PROFILE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  }catch(e){ return null; }
-}
-function saveProfileToStorage(p){
-  localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
-}
 
 function updateHeaderChip(){
   const av = document.getElementById('profileChipAv');
@@ -997,10 +1010,52 @@ document.getElementById('reg-photo-file').addEventListener('change', e=>{
   reader.readAsDataURL(file);
 });
 
+function showAuthStep(step){
+  document.getElementById('authEmailStep').style.display = step === 'email' ? '' : 'none';
+  document.getElementById('authCheckStep').style.display = step === 'check' ? '' : 'none';
+  document.getElementById('authNameStep').style.display = step === 'name' ? '' : 'none';
+}
+
+function showEmailStep(){
+  document.getElementById('auth-email').value = '';
+  document.getElementById('auth-email-error').style.display = 'none';
+  showAuthStep('email');
+}
+
+async function sendMagicLink(){
+  const email = document.getElementById('auth-email').value.trim();
+  if(!email){
+    document.getElementById('auth-email-error').textContent = 'メールアドレスを入力してください';
+    document.getElementById('auth-email-error').style.display = 'block';
+    return;
+  }
+  const btn = document.getElementById('authEmailSubmitBtn');
+  const prevLabel = btn.textContent;
+  btn.textContent = '送信中...';
+  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.href } });
+  btn.textContent = prevLabel;
+  if(error){
+    console.error(error);
+    document.getElementById('auth-email-error').textContent = '送信に失敗しました。もう一度お試しください。';
+    document.getElementById('auth-email-error').style.display = 'block';
+    return;
+  }
+  document.getElementById('authCheckDesc').textContent = `${email} 宛にログイン用のリンクを送信しました。メール内のリンクをクリックするとログインできます。`;
+  showAuthStep('check');
+}
+
 function openRegisterGate(){
   editMode = false;
+  document.getElementById('registerCloseX').style.display = 'none';
+  document.getElementById('registerLogoutBtn').style.display = 'none';
+  showEmailStep();
+  document.getElementById('registerOverlay').classList.remove('hidden');
+}
+
+function openNameStep(){
+  editMode = false;
   document.getElementById('registerTitle').textContent = 'はじめまして！';
-  document.getElementById('registerDesc').textContent = 'Lunch Connectを使うには、まず簡単なプロフィール登録が必要です。名前だけですぐ始められます。';
+  document.getElementById('registerDesc').textContent = 'お名前を登録してください。';
   document.getElementById('registerSubmitBtn').textContent = '登録してはじめる';
   document.getElementById('registerCloseX').style.display = 'none';
   document.getElementById('registerLogoutBtn').style.display = 'none';
@@ -1008,10 +1063,12 @@ function openRegisterGate(){
   regPhotoData = null;
   regPhotoFile = null;
   document.getElementById('regPhotoPreview').innerHTML = '🙂';
+  showAuthStep('name');
   document.getElementById('registerOverlay').classList.remove('hidden');
 }
 
 function openProfileEdit(){
+  if(!currentUser) return;
   editMode = true;
   document.getElementById('registerTitle').textContent = 'プロフィール編集';
   document.getElementById('registerDesc').textContent = '名前やプロフィール画像を変更できます。';
@@ -1022,6 +1079,7 @@ function openProfileEdit(){
   regPhotoData = currentProfile.photo;
   regPhotoFile = null;
   document.getElementById('regPhotoPreview').innerHTML = currentProfile.photo ? `<img src="${currentProfile.photo}" alt="">` : '🙂';
+  showAuthStep('name');
   document.getElementById('registerOverlay').classList.remove('hidden');
 }
 
@@ -1051,30 +1109,80 @@ async function submitRegister(){
     }
     photoUrl = sb.storage.from('avatars').getPublicUrl(path).data.publicUrl;
   }
+
+  if(editMode){
+    const { error } = await sb.from('profiles').update({ name, avatar_url: photoUrl }).eq('id', currentUser.id);
+    if(error){ console.error(error); toast('更新に失敗しました'); return; }
+  }else{
+    const { error } = await sb.from('profiles').insert({ id: currentUser.id, name, avatar_url: photoUrl, email: currentUser.email });
+    if(error){ console.error(error); toast('登録に失敗しました'); return; }
+  }
   currentProfile = {name, photo: photoUrl};
-  saveProfileToStorage(currentProfile);
   regPhotoFile = null;
   updateHeaderChip();
   document.getElementById('registerOverlay').classList.add('hidden');
   toast(editMode ? 'プロフィールを更新しました' : `ようこそ、${name}さん！`);
+  if(!editMode){
+    loadFeed();
+    loadRecruits();
+  }
 }
 
-function logoutProfile(){
-  localStorage.removeItem(PROFILE_KEY);
+async function logoutProfile(){
+  await sb.auth.signOut();
+  currentUser = null;
   currentProfile = null;
+  feedData = [];
+  recruitData = [];
+  renderFeed();
+  renderDiary();
+  renderRecruit();
   updateHeaderChip();
   openRegisterGate();
   toast('ログアウトしました');
 }
 
-function initProfile(){
-  currentProfile = loadProfile();
-  updateHeaderChip();
-  if(!currentProfile){
+async function loadProfileRow(userId){
+  const { data, error } = await sb.from('profiles').select('*').eq('id', userId).maybeSingle();
+  if(error){ console.error(error); return null; }
+  return data;
+}
+
+async function handleSession(session){
+  if(!session){
+    currentUser = null;
+    currentProfile = null;
+    updateHeaderChip();
     openRegisterGate();
-  }else{
-    document.getElementById('registerOverlay').classList.add('hidden');
+    return;
   }
+  currentUser = session.user;
+  const profile = await loadProfileRow(currentUser.id);
+  if(!profile){
+    currentProfile = null;
+    updateHeaderChip();
+    openNameStep();
+    return;
+  }
+  currentProfile = { name: profile.name, photo: profile.avatar_url };
+  updateHeaderChip();
+  document.getElementById('registerOverlay').classList.add('hidden');
+  loadFeed();
+  loadRecruits();
+}
+
+async function initProfile(){
+  const { data: { session } } = await sb.auth.getSession();
+  await handleSession(session);
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if(event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED'){
+      await handleSession(session);
+    }else if(event === 'SIGNED_OUT'){
+      currentUser = null;
+      currentProfile = null;
+      updateHeaderChip();
+    }
+  });
 }
 
 function toast(msg){
@@ -1091,8 +1199,6 @@ renderRecruit();
 renderRadar();
 renderRanking();
 initProfile();
-loadFeed();
-loadRecruits();
 setInterval(loadFeed, 20000);
 setInterval(loadRecruits, 20000);
 </script>
