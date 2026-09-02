@@ -494,6 +494,8 @@
         <input id="rc-store" placeholder="例）炭火焼肉 龍">
         <label>募集人数</label>
         <input id="rc-need" type="number" min="1" value="4">
+        <label>集合日</label>
+        <input id="rc-date" type="date">
         <label>集合時刻</label>
         <input id="rc-time" type="time">
         <div class="modal-actions">
@@ -559,13 +561,25 @@ function setJoinedRecruitIds(ids){
   localStorage.setItem(JOINED_RECRUITS_KEY, JSON.stringify([...ids]));
 }
 
+function pad2(n){ return String(n).padStart(2,'0'); }
+function toDateInputValue(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+function toTimeInputValue(d){ return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; }
+function formatMeetAt(iso){
+  const d = new Date(iso);
+  const w = ['日','月','火','水','木','金','土'][d.getDay()];
+  return `🕐 ${d.getMonth()+1}/${d.getDate()}(${w}) ${pad2(d.getHours())}:${pad2(d.getMinutes())}〜`;
+}
+
 function rowToRecruit(row){
   const joins = row.recruit_joins || [];
+  const meetDate = row.meet_at ? new Date(row.meet_at) : null;
   return {
     id: row.id,
     userId: row.user_id,
-    time: row.meet_time ? `🕐 ${row.meet_time}〜` : '時刻未定',
-    meetTimeRaw: row.meet_time || '',
+    meetAt: row.meet_at,
+    time: meetDate ? formatMeetAt(row.meet_at) : '日時未定',
+    dateInputValue: meetDate ? toDateInputValue(meetDate) : '',
+    timeInputValue: meetDate ? toTimeInputValue(meetDate) : '',
     title: row.title,
     store: row.store,
     need: row.need,
@@ -582,7 +596,8 @@ async function loadRecruits(){
   if(!currentUser) return;
   const { data, error } = await sb.from('recruits').select('*, recruit_joins(name)').order('created_at', { ascending: false });
   if(error){ console.error(error); return; }
-  recruitData = data.map(rowToRecruit);
+  const now = new Date();
+  recruitData = data.filter(r => !r.meet_at || new Date(r.meet_at) >= now).map(rowToRecruit);
   renderRecruit();
 }
 
@@ -712,15 +727,17 @@ async function submitRecruit(){
   const title = document.getElementById('rc-title').value.trim();
   const store = document.getElementById('rc-store').value.trim();
   const need = parseInt(document.getElementById('rc-need').value, 10);
-  const meetTime = document.getElementById('rc-time').value;
-  if(!title || !store || !need || need < 1 || !meetTime){
-    toast('タイトル・お店・人数・集合時刻を入力してください');
+  const date = document.getElementById('rc-date').value;
+  const time = document.getElementById('rc-time').value;
+  if(!title || !store || !need || need < 1 || !date || !time){
+    toast('タイトル・お店・人数・集合日時を入力してください');
     return;
   }
+  const meetAt = new Date(`${date}T${time}`).toISOString();
 
   if(editingRecruitId){
     const { data, error } = await sb.from('recruits')
-      .update({ title, store, need, meet_time: meetTime })
+      .update({ title, store, need, meet_at: meetAt })
       .eq('id', editingRecruitId).select('*, recruit_joins(name)').single();
     if(error){ console.error(error); toast('更新に失敗しました'); return; }
     const idx = recruitData.findIndex(r => r.id === editingRecruitId);
@@ -732,7 +749,7 @@ async function submitRecruit(){
     return;
   }
 
-  const { data, error } = await sb.from('recruits').insert({ title, store, need, meet_time: meetTime, created_by: currentProfile.name, user_id: currentUser.id }).select().single();
+  const { data, error } = await sb.from('recruits').insert({ title, store, need, meet_at: meetAt, created_by: currentProfile.name, user_id: currentUser.id }).select().single();
   if(error){ console.error(error); toast('募集の作成に失敗しました'); return; }
   recruitData.unshift(rowToRecruit({ ...data, recruit_joins: [] }));
   renderRecruit();
@@ -740,6 +757,7 @@ async function submitRecruit(){
   document.getElementById('rc-title').value = '';
   document.getElementById('rc-store').value = '';
   document.getElementById('rc-need').value = '4';
+  document.getElementById('rc-date').value = '';
   document.getElementById('rc-time').value = '';
   toast('ランチ募集を作成しました');
 }
@@ -860,6 +878,7 @@ function openRecruitModal(){
   document.getElementById('rc-title').value = '';
   document.getElementById('rc-store').value = '';
   document.getElementById('rc-need').value = '4';
+  document.getElementById('rc-date').value = '';
   document.getElementById('rc-time').value = '';
   document.getElementById('recruitModal').classList.add('open');
 }
@@ -871,7 +890,8 @@ function openEditRecruit(i){
   document.getElementById('rc-title').value = r.title;
   document.getElementById('rc-store').value = r.store;
   document.getElementById('rc-need').value = r.need;
-  document.getElementById('rc-time').value = r.meetTimeRaw || '';
+  document.getElementById('rc-date').value = r.dateInputValue || '';
+  document.getElementById('rc-time').value = r.timeInputValue || '';
   document.getElementById('recruitModal').classList.add('open');
 }
 function closeRecruitModal(){
