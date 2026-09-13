@@ -202,7 +202,13 @@
     transition:.15s;
   }
   .like-btn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);}
-  .comment-count{font-size:12px;color:var(--sub);display:flex;align-items:center;gap:4px;}
+  .comment-count{font-size:12px;color:var(--sub);display:flex;align-items:center;gap:4px;background:none;border:none;cursor:pointer;padding:4px;font-family:inherit;}
+  .comment-list{max-height:220px;overflow-y:auto;margin:8px 0;}
+  .comment-list .empty{font-size:12px;color:var(--sub);text-align:center;padding:16px 0;}
+  .comment-row{padding:8px 0;border-bottom:1px solid var(--line);}
+  .comment-row .c-head{display:flex;justify-content:space-between;font-size:11px;color:var(--sub);margin-bottom:2px;}
+  .comment-row .c-name{font-weight:700;color:var(--ink);}
+  .comment-row .c-text{font-size:13px;line-height:1.5;}
 
   .section-title{font-size:13px;font-weight:700;color:var(--sub);margin:4px 0 10px;letter-spacing:.5px;}
 
@@ -504,6 +510,19 @@
         </div>
       </div>
     </div>
+
+    <div class="modal-overlay" id="commentModal">
+      <div class="modal-sheet">
+        <h3>コメント</h3>
+        <div id="commentList" class="comment-list"></div>
+        <label>コメントを追加</label>
+        <textarea id="c-text" rows="2" placeholder="コメントを入力"></textarea>
+        <div class="modal-actions">
+          <button class="cancel" onclick="closeComments()">閉じる</button>
+          <button class="submit" onclick="submitComment()">送信</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -536,7 +555,7 @@ function rowToPost(row){
     photo: row.photo,
     likes: row.likes,
     liked: getLikedIds().has(row.id),
-    comments: 0,
+    comments: (row.post_comments && row.post_comments[0] && row.post_comments[0].count) || 0,
     createdAt: row.created_at,
   };
 }
@@ -545,7 +564,7 @@ let feedData = [];
 
 async function loadFeed(){
   if(!currentUser) return;
-  const { data, error } = await sb.from('posts').select('*').order('created_at', { ascending: false });
+  const { data, error } = await sb.from('posts').select('*, post_comments(count)').order('created_at', { ascending: false });
   if(error){ console.error(error); return; }
   feedData = data.map(rowToPost);
   renderFeed();
@@ -651,8 +670,8 @@ function renderFeed(){
       <div class="comment">${p.comment}</div>
       ${p.url ? `<a class="price-tag" href="${p.url}" target="_blank" rel="noopener">🔗 お店のサイトを見る</a>` : ''}
       <div class="post-actions">
-        <button class="like-btn ${p.liked?'on':''}" onclick="toggleLike(${i})">🙋 行ってみたい ${p.likes}人</button>
-        <div class="comment-count">💬 ${p.comments}件</div>
+        <button class="like-btn ${p.liked?'on':''}" onclick="toggleLike(${i})">❤️ いいね！ ${p.likes}</button>
+        <button class="comment-count" onclick="openComments(${i})">💬 ${p.comments}件</button>
       </div>
       ${currentUser && p.userId === currentUser.id ? `<div class="own-actions"><button class="edit-btn" onclick="openEditPost(${i})">✏️ 編集</button><button class="del-btn" onclick="deletePost(${i})">🗑 削除</button></div>` : ''}
     </div>
@@ -994,6 +1013,52 @@ async function deletePost(i){
   renderFeed();
   renderDiary();
   toast('投稿を削除しました');
+}
+
+let currentCommentPostId = null;
+
+function renderComments(list){
+  const el = document.getElementById('commentList');
+  if(!list.length){
+    el.innerHTML = '<div class="empty">まだコメントはありません</div>';
+    return;
+  }
+  el.innerHTML = list.map(c => `
+    <div class="comment-row">
+      <div class="c-head"><span class="c-name">${c.name}</span><span>${new Date(c.created_at).toLocaleString('ja-JP')}</span></div>
+      <div class="c-text">${c.text}</div>
+    </div>
+  `).join('');
+}
+
+async function openComments(i){
+  const p = feedData[i];
+  currentCommentPostId = p.id;
+  document.getElementById('c-text').value = '';
+  document.getElementById('commentList').innerHTML = '<div class="empty">読み込み中...</div>';
+  document.getElementById('commentModal').classList.add('open');
+  const { data, error } = await sb.from('post_comments').select('*').eq('post_id', p.id).order('created_at', { ascending: true });
+  if(error){ console.error(error); return; }
+  renderComments(data);
+}
+
+function closeComments(){
+  document.getElementById('commentModal').classList.remove('open');
+  currentCommentPostId = null;
+}
+
+async function submitComment(){
+  const text = document.getElementById('c-text').value.trim();
+  if(!text || !currentCommentPostId) return;
+  const { error } = await sb.from('post_comments').insert({
+    post_id: currentCommentPostId, user_id: currentUser.id, name: currentProfile.name, text
+  });
+  if(error){ console.error(error); toast('コメントの送信に失敗しました'); return; }
+  document.getElementById('c-text').value = '';
+  const { data: list } = await sb.from('post_comments').select('*').eq('post_id', currentCommentPostId).order('created_at', { ascending: true });
+  renderComments(list || []);
+  const idx = feedData.findIndex(p => p.id === currentCommentPostId);
+  if(idx !== -1){ feedData[idx].comments = (list || []).length; renderFeed(); }
 }
 
 function avatarHtml(p){
