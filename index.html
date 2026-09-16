@@ -141,36 +141,6 @@
     margin-bottom:12px;
     box-shadow:0 1px 3px rgba(0,0,0,.03);
   }
-  .ai-banner{
-    background:linear-gradient(135deg,#3aa17e,#2c8266);
-    color:#fff;
-    border-radius:16px;
-    padding:14px 16px;
-    margin-bottom:14px;
-    position:relative;
-    overflow:hidden;
-  }
-  .ai-banner .tag{
-    font-size:10px;
-    background:rgba(255,255,255,.25);
-    display:inline-block;
-    padding:2px 8px;
-    border-radius:10px;
-    margin-bottom:6px;
-  }
-  .ai-banner h3{margin:0 0 6px;font-size:14px;}
-  .ai-banner p{margin:0 0 10px;font-size:12px;opacity:.9;line-height:1.5;}
-  .ai-banner .actions{display:flex;gap:8px;}
-  .btn-mini{
-    border:none;
-    border-radius:20px;
-    padding:7px 14px;
-    font-size:12px;
-    font-weight:600;
-    cursor:pointer;
-  }
-  .btn-mini.primary{background:#fff;color:#2c8266;}
-  .btn-mini.ghost{background:rgba(255,255,255,.15);color:#fff;}
 
   .post-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
   .avatar{
@@ -252,51 +222,6 @@
     cursor:pointer;z-index:20;
   }
 
-  /* radar */
-  .radar-item{
-    display:flex;gap:10px;align-items:flex-start;
-    background:var(--panel);border:1px solid var(--line);
-    border-radius:14px;padding:10px 12px;margin-bottom:8px;
-    opacity:0;animation:fadeIn .4s forwards;
-  }
-  @keyframes fadeIn{to{opacity:1;}}
-  .radar-dot{width:8px;height:8px;border-radius:50%;background:var(--accent2);margin-top:5px;flex-shrink:0;box-shadow:0 0 0 4px var(--accent2-soft);}
-  .radar-item .txt{font-size:12.5px;line-height:1.5;}
-  .radar-item .t{font-size:10px;color:var(--sub);}
-  .live-dot{
-    display:inline-block;width:7px;height:7px;border-radius:50%;background:#e14b4b;
-    margin-right:5px;animation:pulse 1.2s infinite;
-  }
-  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
-
-  /* ranking */
-  .rank-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);}
-  .rank-row:last-child{border-bottom:none;}
-  .rank-num{width:22px;font-weight:800;color:var(--sub);font-size:13px;}
-  .rank-row:nth-child(1) .rank-num{color:var(--gold);}
-  .rank-bar-wrap{flex:1;}
-  .rank-bar-wrap .name{font-size:12.5px;font-weight:600;margin-bottom:3px;}
-  .rank-bar-bg{background:var(--line);border-radius:6px;height:6px;}
-  .rank-bar-fg{background:var(--accent);height:100%;border-radius:6px;}
-  .rank-count{font-size:11px;color:var(--sub);width:44px;text-align:right;}
-
-  .badges-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
-  .badge{
-    text-align:center;font-size:10px;color:var(--sub);
-  }
-  .badge .icon{
-    width:52px;height:52px;border-radius:14px;background:var(--panel);
-    border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
-    font-size:24px;margin:0 auto 4px;
-  }
-  .badge.earned .icon{background:linear-gradient(135deg,#ffe4b8,#ffcf7a);border-color:var(--gold);}
-  .badge.locked .icon{filter:grayscale(1);opacity:.4;}
-  .badge.earned{color:var(--ink);font-weight:600;}
-
-  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
-  .stat-box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;text-align:center;}
-  .stat-box .num{font-size:20px;font-weight:800;color:var(--accent);}
-  .stat-box .lbl{font-size:10.5px;color:var(--sub);margin-top:2px;}
 
   /* bottom nav */
   nav.tabbar{
@@ -408,15 +333,6 @@
     <div class="screen">
       <!-- HOME -->
       <section class="tabpanel active" id="tab-home">
-        <div class="ai-banner">
-          <div class="tag">AIマッチング</div>
-          <h3>今日は和食派3人・ラーメン派4人です</h3>
-          <p>この4人でどうですか？「〇〇食堂」なら両方の希望に近いお店です。</p>
-          <div class="actions">
-            <button class="btn-mini primary" onclick="toast('マッチング提案に参加しました')">この提案に乗る</button>
-            <button class="btn-mini ghost" onclick="toast('提案を見送りました')">今日は見送る</button>
-          </div>
-        </div>
         <div class="section-title">今日のランチタイムライン</div>
         <div id="feed"></div>
       </section>
@@ -433,24 +349,6 @@
         <div class="section-title">ランチ募集中</div>
         <div id="recruitList"></div>
       </section>
-
-      <!-- RADAR -->
-      <section class="tabpanel" id="tab-radar">
-        <div class="section-title"><span class="live-dot"></span>今日のランチレーダー</div>
-        <div id="radarList"></div>
-      </section>
-
-      <!-- RANKING -->
-      <section class="tabpanel" id="tab-ranking">
-        <div class="stat-grid">
-          <div class="stat-box"><div class="num">78%</div><div class="lbl">今月の利用率</div></div>
-          <div class="stat-box"><div class="num">34%</div><div class="lbl">部署交流率</div></div>
-        </div>
-        <div class="section-title">今月の人気店ランキング</div>
-        <div class="card" id="rankList"></div>
-        <div class="section-title">バッジコレクション</div>
-        <div class="card"><div class="badges-grid" id="badgeGrid"></div></div>
-      </section>
     </div>
 
     <button class="fab" onclick="openModal()">＋</button>
@@ -459,8 +357,6 @@
       <button data-tab="home" class="active"><span class="ic">🏠</span>ホーム</button>
       <button data-tab="diary"><span class="ic">📔</span>日記</button>
       <button data-tab="recruit"><span class="ic">📣</span>募集</button>
-      <button data-tab="radar"><span class="ic">📡</span>レーダー</button>
-      <button data-tab="ranking"><span class="ic">🏆</span>ランキング</button>
     </nav>
 
     <div class="toast" id="toast"></div>
@@ -620,36 +516,6 @@ async function loadRecruits(){
   renderRecruit();
 }
 
-const radarSeed = [
-  {t:"たった今", txt:"<b>田中さん</b>が今から<b>〇〇食堂</b>へ行きます"},
-  {t:"1分前", txt:"炭火焼肉 龍、<b>あと2人</b>参加できます"},
-  {t:"3分前", txt:"<b>営業部3人</b>がランチ中です"},
-  {t:"5分前", txt:"今日は部署を超えたランチが<b>5組</b>成立しました"},
-];
-const radarExtra = [
-  {txt:"<b>開発部</b>と<b>経理部</b>の合同ランチが成立しました"},
-  {txt:"<b>高橋さん</b>が「△△食堂」に向かっています"},
-  {txt:"焼肉 龍、募集枠が<b>あと1人</b>になりました"},
-  {txt:"<b>マーケ部2人</b>がカレー工房でランチ中です"},
-];
-
-const rankData = [
-  {store:"〇〇食堂", count:24},
-  {store:"△△カレー", count:19},
-  {store:"炭火焼肉 龍", count:15},
-  {store:"寿司処 一心", count:9},
-];
-
-const badgeData = [
-  {icon:"🍜", name:"ラーメン王", earned:true},
-  {icon:"🍛", name:"カレー博士", earned:true},
-  {icon:"🏆", name:"100店舗制覇", earned:false},
-  {icon:"📅", name:"毎週ランチ", earned:true},
-  {icon:"🤝", name:"部署越え王", earned:false},
-  {icon:"📸", name:"投稿10回", earned:true},
-  {icon:"⭐", name:"高評価職人", earned:false},
-  {icon:"🎯", name:"AI提案マスター", earned:false},
-];
 
 function renderFeed(){
   const el = document.getElementById('feed');
@@ -791,46 +657,6 @@ async function deleteRecruit(i){
   toast('募集を削除しました');
 }
 
-function renderRadarItem(item){
-  const el = document.getElementById('radarList');
-  const div = document.createElement('div');
-  div.className = 'radar-item';
-  div.innerHTML = `<div class="radar-dot"></div><div><div class="txt">${item.txt}</div><div class="t">${item.t||'たった今'}</div></div>`;
-  el.prepend(div);
-}
-function renderRadar(){
-  document.getElementById('radarList').innerHTML='';
-  radarSeed.forEach(renderRadarItem);
-}
-let radarTimer=null;
-function startRadarLive(){
-  if(radarTimer) return;
-  radarTimer = setInterval(()=>{
-    const item = radarExtra[Math.floor(Math.random()*radarExtra.length)];
-    renderRadarItem({txt:item.txt, t:'たった今'});
-  }, 4000);
-}
-
-function renderRanking(){
-  const max = Math.max(...rankData.map(r=>r.count));
-  document.getElementById('rankList').innerHTML = rankData.map((r,i)=>`
-    <div class="rank-row">
-      <div class="rank-num">${i+1}</div>
-      <div class="rank-bar-wrap">
-        <div class="name">${r.store}</div>
-        <div class="rank-bar-bg"><div class="rank-bar-fg" style="width:${r.count/max*100}%"></div></div>
-      </div>
-      <div class="rank-count">${r.count}人</div>
-    </div>
-  `).join('');
-  document.getElementById('badgeGrid').innerHTML = badgeData.map(b=>`
-    <div class="badge ${b.earned?'earned':'locked'}">
-      <div class="icon">${b.icon}</div>
-      ${b.name}
-    </div>
-  `).join('');
-}
-
 // tab switching
 document.getElementById('tabbar').addEventListener('click', e=>{
   const btn = e.target.closest('button');
@@ -839,10 +665,9 @@ document.getElementById('tabbar').addEventListener('click', e=>{
   document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('active', b===btn));
   document.querySelectorAll('.tabpanel').forEach(p=>p.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
-  const titles = {home:['Lunch Connect','ランチでつながる社内SNS'], diary:['ランチ日記','あなたの食の記録'], recruit:['ランチ募集','一緒に行く人を探す'], radar:['ランチレーダー','いまの社内ランチ状況'], ranking:['ランキング & バッジ','みんなの人気店とあなたの実績']};
+  const titles = {home:['Lunch Connect','ランチでつながる社内SNS'], diary:['ランチ日記','あなたの食の記録'], recruit:['ランチ募集','一緒に行く人を探す']};
   document.getElementById('headerTitle').textContent = titles[tab][0];
   document.getElementById('headerSub').textContent = titles[tab][1];
-  if(tab==='radar') startRadarLive();
 });
 
 // modal
@@ -1282,8 +1107,6 @@ function toast(msg){
 renderFeed();
 renderDiary();
 renderRecruit();
-renderRadar();
-renderRanking();
 initProfile();
 setInterval(loadFeed, 20000);
 setInterval(loadRecruits, 20000);
