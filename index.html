@@ -183,7 +183,7 @@
   .section-title{font-size:13px;font-weight:700;color:var(--sub);margin:4px 0 10px;letter-spacing:.5px;}
 
   /* diary */
-  .diary-row{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);}
+  .diary-row{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer;}
   .diary-row:last-child{border-bottom:none;}
   .diary-thumb{width:46px;height:46px;border-radius:10px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;overflow:hidden;}
   .diary-thumb img{width:100%;height:100%;object-fit:cover;}
@@ -327,16 +327,18 @@
     </div>
 
     <div class="screen">
-      <!-- HOME -->
+      <!-- HOME (overview) -->
       <section class="tabpanel active" id="tab-home">
-        <div class="section-title">今日のランチタイムライン</div>
-        <div id="feed"></div>
+        <div class="section-title">最新の日記</div>
+        <div class="card" id="homeDiaryPreview"></div>
+        <div class="section-title">募集中のランチ</div>
+        <div class="card" id="homeRecruitPreview"></div>
       </section>
 
-      <!-- DIARY -->
+      <!-- DIARY (full timeline) -->
       <section class="tabpanel" id="tab-diary">
-        <div class="section-title">ランチ日記</div>
-        <div class="card" id="diaryList"></div>
+        <div class="section-title">今日のランチタイムライン</div>
+        <div id="feed"></div>
       </section>
 
       <!-- RECRUIT -->
@@ -551,18 +553,24 @@ async function toggleLike(i){
   if(error) console.error(error);
 }
 
+function goToTab(tab){
+  const btn = document.querySelector(`#tabbar button[data-tab="${tab}"]`);
+  if(btn) btn.click();
+}
+
 function renderDiary(){
-  const diaryData = feedData.map(p => ({
-    photo: p.photo,
-    store: p.store,
-    date: p.createdAt ? new Date(p.createdAt).toLocaleString('ja-JP') : '',
-  }));
-  document.getElementById('diaryList').innerHTML = diaryData.map(d=>`
-    <div class="diary-row">
-      <div class="diary-thumb">${d.photo ? `<img src="${d.photo}" alt="">` : ''}</div>
+  const el = document.getElementById('homeDiaryPreview');
+  const preview = feedData.slice(0, 3);
+  if(!preview.length){
+    el.innerHTML = '<div class="diary-row"><div class="diary-info"><div class="store">まだ日記がありません</div></div></div>';
+    return;
+  }
+  el.innerHTML = preview.map(p => `
+    <div class="diary-row" onclick="goToTab('diary')">
+      <div class="diary-thumb">${p.photo ? `<img src="${p.photo}" alt="">` : ''}</div>
       <div class="diary-info">
-        <div class="store">${d.store}</div>
-        <div class="date">${d.date}</div>
+        <div class="store">${p.store}</div>
+        <div class="date">${p.createdAt ? new Date(p.createdAt).toLocaleString('ja-JP') : ''}</div>
       </div>
     </div>
   `).join('');
@@ -585,6 +593,25 @@ function renderRecruit(){
         <button class="join-btn ${r.joinedYou?'joined':''}" onclick="joinRecruit(${i})">${r.joinedYou?'参加済み':'参加する'}</button>
       </div>
       ${currentUser && r.userId === currentUser.id ? `<div class="own-actions"><button class="edit-btn" onclick="openEditRecruit(${i})">✏️ 編集</button><button class="del-btn" onclick="deleteRecruit(${i})">🗑 削除</button></div>` : ''}
+    </div>
+  `).join('');
+  renderHomeRecruitPreview();
+}
+
+function renderHomeRecruitPreview(){
+  const el = document.getElementById('homeRecruitPreview');
+  const preview = recruitData.slice(0, 3);
+  if(!preview.length){
+    el.innerHTML = '<div class="diary-row"><div class="diary-info"><div class="store">現在募集中のランチはありません</div></div></div>';
+    return;
+  }
+  el.innerHTML = preview.map(r => `
+    <div class="diary-row" onclick="goToTab('recruit')">
+      <div class="diary-thumb">📣</div>
+      <div class="diary-info">
+        <div class="store">${r.title}</div>
+        <div class="date">${r.store} ・ ${r.time}</div>
+      </div>
     </div>
   `).join('');
 }
