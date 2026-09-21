@@ -117,6 +117,11 @@
     width:100%;margin-top:10px;padding:11px;border:1px solid var(--line);border-radius:12px;
     background:none;color:var(--sub);font-weight:600;font-size:12.5px;cursor:pointer;
   }
+  .notify-toggle-row{
+    display:flex;align-items:center;gap:8px;margin-top:16px;
+    font-size:12.5px;color:var(--sub);cursor:pointer;
+  }
+  .notify-toggle-row input{width:16px;height:16px;flex-shrink:0;}
   .register-overlay .close-x{
     position:absolute;top:16px;right:16px;background:none;border:none;font-size:18px;color:var(--sub);cursor:pointer;
   }
@@ -320,6 +325,11 @@
           <div class="photo-upload-txt">タップして画像を選択</div>
         </div>
         <input type="file" id="reg-photo-file" accept="image/*" style="display:none;">
+
+        <label class="notify-toggle-row">
+          <input type="checkbox" id="reg-notify" checked>
+          投稿・募集のメール通知を受け取る
+        </label>
 
         <button class="submit-btn" id="registerSubmitBtn" onclick="submitRegister()">登録してはじめる</button>
         <button class="logout-btn" id="registerLogoutBtn" onclick="logoutProfile()" style="display:none;">ログアウト（アカウントを切り替える）</button>
@@ -996,6 +1006,7 @@ function openNameStep(){
   regPhotoData = null;
   regPhotoFile = null;
   document.getElementById('regPhotoPreview').innerHTML = '🙂';
+  document.getElementById('reg-notify').checked = true;
   showAuthStep('name');
   document.getElementById('registerOverlay').classList.remove('hidden');
 }
@@ -1012,6 +1023,7 @@ function openProfileEdit(){
   regPhotoData = currentProfile.photo;
   regPhotoFile = null;
   document.getElementById('regPhotoPreview').innerHTML = currentProfile.photo ? `<img src="${currentProfile.photo}" alt="">` : '🙂';
+  document.getElementById('reg-notify').checked = currentProfile.notifyEnabled !== false;
   showAuthStep('name');
   document.getElementById('registerOverlay').classList.remove('hidden');
 }
@@ -1043,14 +1055,16 @@ async function submitRegister(){
     photoUrl = sb.storage.from('avatars').getPublicUrl(path).data.publicUrl;
   }
 
+  const notifyEnabled = document.getElementById('reg-notify').checked;
+
   if(editMode){
-    const { error } = await sb.from('profiles').update({ name, avatar_url: photoUrl }).eq('id', currentUser.id);
+    const { error } = await sb.from('profiles').update({ name, avatar_url: photoUrl, notify_enabled: notifyEnabled }).eq('id', currentUser.id);
     if(error){ console.error(error); toast('更新に失敗しました'); return; }
   }else{
-    const { error } = await sb.from('profiles').insert({ id: currentUser.id, name, avatar_url: photoUrl, email: currentUser.email });
+    const { error } = await sb.from('profiles').insert({ id: currentUser.id, name, avatar_url: photoUrl, email: currentUser.email, notify_enabled: notifyEnabled });
     if(error){ console.error(error); toast('登録に失敗しました'); return; }
   }
-  currentProfile = {name, photo: photoUrl};
+  currentProfile = {name, photo: photoUrl, notifyEnabled};
   regPhotoFile = null;
   updateHeaderChip();
   document.getElementById('registerOverlay').classList.add('hidden');
@@ -1097,7 +1111,7 @@ async function handleSession(session){
     openNameStep();
     return;
   }
-  currentProfile = { name: profile.name, photo: profile.avatar_url };
+  currentProfile = { name: profile.name, photo: profile.avatar_url, notifyEnabled: profile.notify_enabled !== false };
   updateHeaderChip();
   document.getElementById('registerOverlay').classList.add('hidden');
   loadFeed();
