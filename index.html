@@ -184,6 +184,16 @@
   .comment-row .c-head{display:flex;justify-content:space-between;font-size:11px;color:var(--sub);margin-bottom:2px;}
   .comment-row .c-name{font-weight:700;color:var(--ink);}
   .comment-row .c-text{font-size:13px;line-height:1.5;}
+  .member-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer;}
+  .member-row:last-child{border-bottom:none;}
+  .member-row .m-name{font-size:13px;font-weight:600;}
+  .dm-bubble-wrap{display:flex;margin-bottom:8px;}
+  .dm-bubble-wrap.me{justify-content:flex-end;}
+  .dm-bubble{max-width:75%;padding:8px 12px;border-radius:14px;font-size:13px;line-height:1.45;}
+  .dm-bubble-wrap.me .dm-bubble{background:var(--accent);color:#fff;border-bottom-right-radius:3px;}
+  .dm-bubble-wrap.them .dm-bubble{background:#f4f1ea;color:var(--ink);border-bottom-left-radius:3px;}
+  .dm-time{font-size:9.5px;color:var(--sub);margin-top:2px;text-align:right;}
+  .dm-bubble-wrap.them .dm-time{text-align:left;}
 
   .section-title{font-size:13px;font-weight:700;color:var(--sub);margin:4px 0 10px;letter-spacing:.5px;}
 
@@ -356,6 +366,12 @@
         <div class="section-title">ランチ募集中</div>
         <div id="recruitList"></div>
       </section>
+
+      <!-- DM -->
+      <section class="tabpanel" id="tab-dm">
+        <div class="section-title">メンバー</div>
+        <div class="card" id="memberList"></div>
+      </section>
     </div>
 
     <button class="fab" onclick="openModal()">＋</button>
@@ -364,6 +380,7 @@
       <button data-tab="home" class="active"><span class="ic">🏠</span>ホーム</button>
       <button data-tab="diary"><span class="ic">📔</span>日記</button>
       <button data-tab="recruit"><span class="ic">📣</span>募集</button>
+      <button data-tab="dm"><span class="ic">✉️</span>DM</button>
     </nav>
 
     <div class="toast" id="toast"></div>
@@ -423,6 +440,18 @@
         <div class="modal-actions">
           <button class="cancel" onclick="closeComments()">閉じる</button>
           <button class="submit" onclick="submitComment()">送信</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="dmModal">
+      <div class="modal-sheet">
+        <h3 id="dmModalTitle">DM</h3>
+        <div id="dmMessageList" class="comment-list"></div>
+        <textarea id="dm-text" rows="2" placeholder="メッセージを入力"></textarea>
+        <div class="modal-actions">
+          <button class="cancel" onclick="closeDM()">閉じる</button>
+          <button class="submit" onclick="submitDM()">送信</button>
         </div>
       </div>
     </div>
@@ -625,6 +654,93 @@ function renderHomeRecruitPreview(){
     </div>
   `).join('');
 }
+
+let memberList = [];
+
+async function loadMembers(){
+  if(!currentUser) return;
+  const { data, error } = await sb.rpc('list_members');
+  if(error){ console.error(error); return; }
+  memberList = (data || []).filter(m => m.id !== currentUser.id);
+  renderMemberList();
+}
+
+function renderMemberList(){
+  const el = document.getElementById('memberList');
+  if(!memberList.length){
+    el.innerHTML = '<div class="member-row"><div class="m-name">他のメンバーがまだいません</div></div>';
+    return;
+  }
+  el.innerHTML = memberList.map((m,i) => `
+    <div class="member-row" onclick="openDM(${i})">
+      <div class="avatar">${m.avatar_url ? `<img src="${m.avatar_url}" alt="">` : '🙂'}</div>
+      <div class="m-name">${m.name}</div>
+    </div>
+  `).join('');
+}
+
+let currentDmPeer = null;
+let dmPollTimer = null;
+
+async function openDM(i){
+  const m = memberList[i];
+  currentDmPeer = m;
+  document.getElementById('dmModalTitle').textContent = `${m.name} さんとのDM`;
+  document.getElementById('dm-text').value = '';
+  document.getElementById('dmMessageList').innerHTML = '<div class="empty">読み込み中...</div>';
+  document.getElementById('dmModal').classList.add('open');
+  await loadDmMessages();
+  if(dmPollTimer) clearInterval(dmPollTimer);
+  dmPollTimer = setInterval(loadDmMessages, 4000);
+}
+
+function closeDM(){
+  document.getElementById('dmModal').classList.remove('open');
+  if(dmPollTimer){ clearInterval(dmPollTimer); dmPollTimer = null; }
+  currentDmPeer = null;
+}
+
+function renderDmMessages(list){
+  const el = document.getElementById('dmMessageList');
+  if(!list.length){
+    el.innerHTML = '<div class="empty">まだメッセージはありません</div>';
+    return;
+  }
+  el.innerHTML = list.map(m => {
+    const mine = m.sender_id === currentUser.id;
+    return `
+      <div class="dm-bubble-wrap ${mine?'me':'them'}">
+        <div>
+          <div class="dm-bubble">${m.text}</div>
+          <div class="dm-time">${new Date(m.created_at).toLocaleString('ja-JP')}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+async function loadDmMessages(){
+  if(!currentDmPeer || !currentUser) return;
+  const { data, error } = await sb.from('dm_messages')
+    .select('*')
+    .or(`and(sender_id.eq.${currentUser.id},recipient_id.eq.${currentDmPeer.id}),and(sender_id.eq.${currentDmPeer.id},recipient_id.eq.${currentUser.id})`)
+    .order('created_at', { ascending: true });
+  if(error){ console.error(error); return; }
+  renderDmMessages(data || []);
+}
+
+async function submitDM(){
+  const text = document.getElementById('dm-text').value.trim();
+  if(!text || !currentDmPeer) return;
+  const { error } = await sb.from('dm_messages').insert({
+    sender_id: currentUser.id, recipient_id: currentDmPeer.id, text
+  });
+  if(error){ console.error(error); toast('送信に失敗しました'); return; }
+  document.getElementById('dm-text').value = '';
+  await loadDmMessages();
+}
+
 async function joinRecruit(i){
   const r = recruitData[i];
   if(r.joinedYou) return;
@@ -697,7 +813,7 @@ document.getElementById('tabbar').addEventListener('click', e=>{
   document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('active', b===btn));
   document.querySelectorAll('.tabpanel').forEach(p=>p.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
-  const titles = {home:['Lunch Connect','ランチでつながる社内SNS'], diary:['ランチ日記','あなたの食の記録'], recruit:['ランチ募集','一緒に行く人を探す']};
+  const titles = {home:['Lunch Connect','ランチでつながる社内SNS'], diary:['ランチ日記','あなたの食の記録'], recruit:['ランチ募集','一緒に行く人を探す'], dm:['DM','メンバーに直接メッセージ']};
   document.getElementById('headerTitle').textContent = titles[tab][0];
   document.getElementById('headerSub').textContent = titles[tab][1];
 });
@@ -711,6 +827,9 @@ function openModal(){
   const activeTab = document.querySelector('#tabbar button.active')?.dataset.tab || 'home';
   if(activeTab === 'recruit'){
     openRecruitModal();
+    return;
+  }
+  if(activeTab === 'dm'){
     return;
   }
   editingPostId = null;
@@ -1081,9 +1200,11 @@ async function logoutProfile(){
   currentProfile = null;
   feedData = [];
   recruitData = [];
+  memberList = [];
   renderFeed();
   renderDiary();
   renderRecruit();
+  renderMemberList();
   updateHeaderChip();
   openRegisterGate();
   toast('ログアウトしました');
@@ -1116,6 +1237,7 @@ async function handleSession(session){
   document.getElementById('registerOverlay').classList.add('hidden');
   loadFeed();
   loadRecruits();
+  loadMembers();
 }
 
 async function initProfile(){
