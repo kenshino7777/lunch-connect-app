@@ -106,6 +106,15 @@
     font-size:36px;overflow:hidden;
   }
   .post-photo-preview img{width:100%;height:100%;object-fit:cover;}
+  .photo-slots{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;}
+  .photo-slot{position:relative;width:64px;height:64px;border-radius:10px;overflow:hidden;background:#f6ead9;border:1px solid var(--line);}
+  .photo-slot img{width:100%;height:100%;object-fit:cover;}
+  .photo-slot .slot-main-tag{position:absolute;left:2px;bottom:2px;background:rgba(0,0,0,.55);color:#fff;font-size:8px;padding:1px 4px;border-radius:4px;}
+  .photo-slot .slot-remove{position:absolute;top:2px;right:2px;width:16px;height:16px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:none;font-size:10px;line-height:16px;text-align:center;cursor:pointer;padding:0;}
+  .add-photo-btn{margin-top:8px;padding:8px 14px;border:1px dashed var(--accent);border-radius:10px;background:none;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;}
+  .photo-thumbs{display:flex;gap:6px;margin:-4px 0 10px;}
+  .photo-thumbs img{width:42px;height:42px;object-fit:cover;border-radius:8px;cursor:pointer;border:1px solid var(--line);}
+  .map-embed{width:100%;height:140px;border:0;border-radius:12px;margin-top:8px;}
   .del-btn{background:none;border:none;color:#c0392b;font-size:11px;cursor:pointer;padding:4px 0;}
   .edit-btn{background:none;border:none;color:var(--accent2);font-size:11px;cursor:pointer;padding:4px 0;}
   .own-actions{display:flex;gap:14px;margin-top:2px;}
@@ -390,12 +399,10 @@
         <h3 id="postModalTitle">ランチ日記を投稿</h3>
         <label>店名</label>
         <input id="f-store" placeholder="例）〇〇食堂">
-        <label>写真</label>
-        <div class="photo-upload" onclick="document.getElementById('f-photo-file').click()" style="width:100%;">
-          <div class="post-photo-preview" id="postPhotoPreview">📷</div>
-          <div class="photo-upload-txt">タップして写真を選択</div>
-        </div>
-        <input type="file" id="f-photo-file" accept="image/*" style="display:none;">
+        <label>写真(最大5枚・1枚目がメイン)</label>
+        <div class="photo-slots" id="postPhotoSlots"></div>
+        <button type="button" class="add-photo-btn" id="addPhotoBtn" onclick="document.getElementById('f-photo-file').click()">＋写真を追加</button>
+        <input type="file" id="f-photo-file" accept="image/*" multiple style="display:none;">
         <label>評価</label>
         <div class="star-pick" id="starPick">
           <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
@@ -404,6 +411,8 @@
         <textarea id="f-comment" rows="2" placeholder="チャーシューが絶品！"></textarea>
         <label>お店のURL</label>
         <input id="f-url" type="url" placeholder="例）https://example.com">
+        <label>住所・最寄り(地図表示用・任意)</label>
+        <input id="f-address" placeholder="例）東京都渋谷区〇〇1-2-3 または店名">
         <div class="modal-actions">
           <button class="cancel" onclick="closeModal()">キャンセル</button>
           <button class="submit" onclick="submitPost()">投稿する</button>
@@ -485,6 +494,8 @@ function rowToPost(row){
     comment: row.comment,
     url: row.url,
     photo: row.photo,
+    photos: (row.photos && row.photos.length) ? row.photos : (row.photo ? [row.photo] : []),
+    address: row.address || '',
     likes: row.likes,
     liked: getLikedIds().has(row.id),
     comments: (row.post_comments && row.post_comments[0] && row.post_comments[0].count) || 0,
@@ -564,18 +575,19 @@ function renderFeed(){
           <div class="meta">${p.dept ? p.dept+'・' : ''}さきほど</div>
         </div>
       </div>
-      <div class="photo-block">${p.photo ? `<img src="${p.photo}" alt="">` : ''}</div>
+      ${photoBlockHtml(p)}
       <div class="store-line">
         <div class="store">${p.store}</div>
         <div class="stars">${'★'.repeat(p.stars)}${'☆'.repeat(5-p.stars)}</div>
       </div>
       <div class="comment">${p.comment}</div>
       ${p.url ? `<a class="price-tag" href="${p.url}" target="_blank" rel="noopener">🔗 お店のサイトを見る</a>` : ''}
+      ${mapEmbedHtml(p)}
       <div class="post-actions">
         <button class="like-btn ${p.liked?'on':''}" onclick="toggleLike(${i})">❤️ いいね！ ${p.likes}</button>
         <button class="comment-count" onclick="openComments(${i})">💬 ${p.comments}件</button>
       </div>
-      ${currentUser && p.userId === currentUser.id ? `<div class="own-actions"><button class="edit-btn" onclick="openEditPost(${i})">✏️ 編集</button><button class="del-btn" onclick="deletePost(${i})">🗑 削除</button></div>` : ''}
+      ${currentUser ? `<div class="own-actions"><button class="edit-btn" onclick="openEditPost(${i})">✏️ 編集</button>${p.userId === currentUser.id ? `<button class="del-btn" onclick="deletePost(${i})">🗑 削除</button>` : ''}</div>` : ''}
     </div>
   `).join('');
 }
@@ -821,7 +833,6 @@ document.getElementById('tabbar').addEventListener('click', e=>{
 // modal
 let selectedStars = 5;
 let editingPostId = null;
-let editingPhotoUrl = null;
 
 function openModal(){
   const activeTab = document.querySelector('#tabbar button.active')?.dataset.tab || 'home';
@@ -833,12 +844,12 @@ function openModal(){
     return;
   }
   editingPostId = null;
-  editingPhotoUrl = null;
   document.getElementById('postModalTitle').textContent = 'ランチ日記を投稿';
   document.querySelector('#postModal .submit').textContent = '投稿する';
   document.getElementById('f-store').value = '';
   document.getElementById('f-comment').value = '';
   document.getElementById('f-url').value = '';
+  document.getElementById('f-address').value = '';
   selectedStars = 5;
   updateStarPick();
   resetPostPhoto();
@@ -847,17 +858,17 @@ function openModal(){
 function openEditPost(i){
   const p = feedData[i];
   editingPostId = p.id;
-  editingPhotoUrl = p.photo;
   document.getElementById('postModalTitle').textContent = 'ランチ日記を編集';
   document.querySelector('#postModal .submit').textContent = '更新する';
   document.getElementById('f-store').value = p.store;
   document.getElementById('f-comment').value = p.comment === '(コメントなし)' ? '' : p.comment;
   document.getElementById('f-url').value = p.url || '';
+  document.getElementById('f-address').value = p.address || '';
   selectedStars = p.stars;
   updateStarPick();
-  postPhotoFile = null;
+  postPhotoSlots = (p.photos && p.photos.length ? p.photos : (p.photo ? [p.photo] : [])).map(url => ({ type: 'existing', url }));
   document.getElementById('f-photo-file').value = '';
-  document.getElementById('postPhotoPreview').innerHTML = p.photo ? `<img src="${p.photo}" alt="">` : '📷';
+  renderPostPhotoSlots();
   document.getElementById('postModal').classList.add('open');
 }
 function closeModal(){
@@ -905,21 +916,38 @@ function updateStarPick(){
 }
 updateStarPick();
 
-let postPhotoFile = null;
+let postPhotoSlots = [];
+
 document.getElementById('f-photo-file').addEventListener('change', e=>{
-  const file = e.target.files[0];
-  if(!file) return;
-  postPhotoFile = file;
-  const reader = new FileReader();
-  reader.onload = ev=>{
-    document.getElementById('postPhotoPreview').innerHTML = `<img src="${ev.target.result}" alt="">`;
-  };
-  reader.readAsDataURL(file);
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';
+  for(const file of files){
+    if(postPhotoSlots.length >= 5) break;
+    postPhotoSlots.push({ type: 'new', file, previewUrl: URL.createObjectURL(file) });
+  }
+  renderPostPhotoSlots();
 });
 
+function removePhotoSlot(i){
+  postPhotoSlots.splice(i, 1);
+  renderPostPhotoSlots();
+}
+
+function renderPostPhotoSlots(){
+  const el = document.getElementById('postPhotoSlots');
+  el.innerHTML = postPhotoSlots.map((s,i) => `
+    <div class="photo-slot">
+      <img src="${s.previewUrl || s.url}" alt="">
+      ${i===0 ? '<span class="slot-main-tag">メイン</span>' : ''}
+      <button type="button" class="slot-remove" onclick="removePhotoSlot(${i})">×</button>
+    </div>
+  `).join('');
+  document.getElementById('addPhotoBtn').style.display = postPhotoSlots.length >= 5 ? 'none' : '';
+}
+
 function resetPostPhoto(){
-  postPhotoFile = null;
-  document.getElementById('postPhotoPreview').innerHTML = '📷';
+  postPhotoSlots = [];
+  renderPostPhotoSlots();
   document.getElementById('f-photo-file').value = '';
 }
 
@@ -927,26 +955,37 @@ async function submitPost(){
   const store = document.getElementById('f-store').value.trim() || '名称未設定のお店';
   const comment = document.getElementById('f-comment').value.trim() || '(コメントなし)';
   const url = document.getElementById('f-url').value.trim();
+  const address = document.getElementById('f-address').value.trim();
 
-  let photo = editingPostId ? editingPhotoUrl : null;
-  if(postPhotoFile){
-    const btn = document.querySelector('#postModal .submit');
-    const prevLabel = btn.textContent;
-    btn.textContent = 'アップロード中...';
-    const path = `${Date.now()}-${postPhotoFile.name}`;
-    const { error: uploadError } = await sb.storage.from('post-photos').upload(path, postPhotoFile);
-    btn.textContent = prevLabel;
-    if(uploadError){ console.error(uploadError); toast('写真のアップロードに失敗しました'); return; }
-    photo = sb.storage.from('post-photos').getPublicUrl(path).data.publicUrl;
-  }
-  if(!photo){
-    toast('写真を選択してください');
+  if(!postPhotoSlots.length){
+    toast('写真を1枚以上選択してください');
     return;
   }
 
+  const btn = document.querySelector('#postModal .submit');
+  const prevLabel = btn.textContent;
+  btn.textContent = 'アップロード中...';
+  const photos = [];
+  for(const slot of postPhotoSlots){
+    if(slot.type === 'existing'){
+      photos.push(slot.url);
+      continue;
+    }
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2)}-${slot.file.name}`;
+    const { error: uploadError } = await sb.storage.from('post-photos').upload(path, slot.file);
+    if(uploadError){
+      btn.textContent = prevLabel;
+      console.error(uploadError);
+      toast('写真のアップロードに失敗しました');
+      return;
+    }
+    photos.push(sb.storage.from('post-photos').getPublicUrl(path).data.publicUrl);
+  }
+  btn.textContent = prevLabel;
+
   if(editingPostId){
     const { data, error } = await sb.from('posts')
-      .update({ store, stars: selectedStars, comment, url, photo })
+      .update({ store, stars: selectedStars, comment, url, address, photo: photos[0], photos })
       .eq('id', editingPostId).select().single();
     if(error){ console.error(error); toast('更新に失敗しました'); return; }
     const idx = feedData.findIndex(p => p.id === editingPostId);
@@ -956,7 +995,6 @@ async function submitPost(){
     closeModal();
     resetPostPhoto();
     editingPostId = null;
-    editingPhotoUrl = null;
     toast('投稿を更新しました');
     return;
   }
@@ -965,7 +1003,7 @@ async function submitPost(){
     user_id: currentUser.id,
     name: currentProfile.name,
     avatar_url: currentProfile.photo || null,
-    store, stars: selectedStars, comment, url, photo,
+    store, stars: selectedStars, comment, url, address, photo: photos[0], photos,
   };
   const { data, error } = await sb.from('posts').insert(row).select().single();
   if(error){ console.error(error); toast('投稿に失敗しました'); return; }
@@ -976,6 +1014,7 @@ async function submitPost(){
   document.getElementById('f-store').value='';
   document.getElementById('f-comment').value='';
   document.getElementById('f-url').value='';
+  document.getElementById('f-address').value='';
   resetPostPhoto();
   toast('ランチ日記を投稿しました');
 }
@@ -1040,6 +1079,23 @@ async function submitComment(){
 function avatarHtml(p){
   if(p.avatarImg) return `<img src="${p.avatarImg}" alt="">`;
   return p.avatar || '🙂';
+}
+
+function photoBlockHtml(p){
+  const photos = (p.photos && p.photos.length) ? p.photos : (p.photo ? [p.photo] : []);
+  if(!photos.length) return '<div class="photo-block"></div>';
+  const mainId = `photo-main-${p.id}`;
+  const main = `<div class="photo-block"><img id="${mainId}" src="${photos[0]}" alt=""></div>`;
+  const thumbs = photos.length > 1
+    ? `<div class="photo-thumbs">${photos.map(url => `<img src="${url}" onclick="document.getElementById('${mainId}').src='${url}'" alt="">`).join('')}</div>`
+    : '';
+  return main + thumbs;
+}
+
+function mapEmbedHtml(p){
+  if(!p.address) return '';
+  const q = encodeURIComponent(p.address);
+  return `<iframe class="map-embed" src="https://www.google.com/maps?q=${q}&output=embed" loading="lazy"></iframe>`;
 }
 
 /* ---- account / profile (Supabase Auth magic link + profiles table) ---- */
