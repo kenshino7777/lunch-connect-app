@@ -172,7 +172,13 @@
     display:flex;align-items:center;justify-content:center;
     font-size:44px;margin-bottom:10px;overflow:hidden;
   }
-  .photo-block img{width:100%;height:100%;object-fit:cover;}
+  .photo-block img{width:100%;height:100%;object-fit:cover;cursor:zoom-in;}
+  .lightbox{
+    display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);
+    z-index:200;align-items:center;justify-content:center;padding:20px;cursor:zoom-out;
+  }
+  .lightbox.open{display:flex;}
+  .lightbox img{max-width:100%;max-height:100%;border-radius:8px;object-fit:contain;}
   .store-line{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
   .store-line .store{font-weight:700;font-size:14px;}
   .stars{color:var(--gold);font-size:13px;letter-spacing:1px;}
@@ -393,6 +399,10 @@
     </nav>
 
     <div class="toast" id="toast"></div>
+
+    <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+      <img id="lightboxImg" src="" alt="">
+    </div>
 
     <div class="modal-overlay" id="postModal">
       <div class="modal-sheet">
@@ -1085,7 +1095,7 @@ function photoBlockHtml(p){
   const photos = (p.photos && p.photos.length) ? p.photos : (p.photo ? [p.photo] : []);
   if(!photos.length) return '<div class="photo-block"></div>';
   const mainId = `photo-main-${p.id}`;
-  const main = `<div class="photo-block"><img id="${mainId}" src="${photos[0]}" alt=""></div>`;
+  const main = `<div class="photo-block"><img id="${mainId}" src="${photos[0]}" alt="" onclick="openLightbox(this.src)"></div>`;
   const thumbs = photos.length > 1
     ? `<div class="photo-thumbs">${photos.map(url => `<img src="${url}" onclick="document.getElementById('${mainId}').src='${url}'" alt="">`).join('')}</div>`
     : '';
@@ -1096,6 +1106,15 @@ function mapEmbedHtml(p){
   if(!p.address) return '';
   const q = encodeURIComponent(p.address);
   return `<iframe class="map-embed" src="https://www.google.com/maps?q=${q}&output=embed" loading="lazy"></iframe>`;
+}
+
+function openLightbox(src){
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox(){
+  document.getElementById('lightbox').classList.remove('open');
+  document.getElementById('lightboxImg').src = '';
 }
 
 /* ---- account / profile (Supabase Auth magic link + profiles table) ---- */
