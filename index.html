@@ -328,17 +328,21 @@
 
       <div id="authEmailStep">
         <h2>はじめまして！</h2>
-        <div class="desc">Lunch Connectを使うには、メールアドレスでログインしてください。ログイン用のリンクをメールでお送りします。</div>
+        <div class="desc">Lunch Connectを使うには、メールアドレスでログインしてください。ログイン用の6桁コードをメールでお送りします。</div>
         <label>メールアドレス</label>
         <input type="email" id="auth-email" placeholder="例）you@example.com">
         <div class="field-error" id="auth-email-error">メールアドレスを入力してください</div>
-        <button class="submit-btn" id="authEmailSubmitBtn" onclick="sendMagicLink()">ログインリンクを送る</button>
+        <button class="submit-btn" id="authEmailSubmitBtn" onclick="sendMagicLink()">コードを送る</button>
       </div>
 
       <div id="authCheckStep" style="display:none;">
-        <h2>メールを確認してください</h2>
-        <div class="desc" id="authCheckDesc">ログイン用のリンクを送信しました。メール内のリンクをクリックするとログインできます。</div>
-        <button class="submit-btn" onclick="showEmailStep()">別のメールアドレスを使う</button>
+        <h2>コードを入力してください</h2>
+        <div class="desc" id="authCheckDesc">ログイン用の6桁コードを送信しました。メールを確認して入力してください。</div>
+        <label>6桁コード</label>
+        <input type="text" inputmode="numeric" maxlength="6" id="auth-code" placeholder="例）123456">
+        <div class="field-error" id="auth-code-error">6桁のコードを入力してください</div>
+        <button class="submit-btn" id="authCodeSubmitBtn" onclick="verifyCode()">ログイン</button>
+        <button class="logout-btn" onclick="showEmailStep()">別のメールアドレスを使う</button>
       </div>
 
       <div id="authNameStep" style="display:none;">
@@ -1164,6 +1168,8 @@ function showEmailStep(){
   showAuthStep('email');
 }
 
+let pendingAuthEmail = '';
+
 async function sendMagicLink(){
   const email = document.getElementById('auth-email').value.trim();
   if(!email){
@@ -1174,7 +1180,7 @@ async function sendMagicLink(){
   const btn = document.getElementById('authEmailSubmitBtn');
   const prevLabel = btn.textContent;
   btn.textContent = '送信中...';
-  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.href } });
+  const { error } = await sb.auth.signInWithOtp({ email });
   btn.textContent = prevLabel;
   if(error){
     console.error(error);
@@ -1182,8 +1188,32 @@ async function sendMagicLink(){
     document.getElementById('auth-email-error').style.display = 'block';
     return;
   }
-  document.getElementById('authCheckDesc').textContent = `${email} 宛にログイン用のリンクを送信しました。メール内のリンクをクリックするとログインできます。`;
+  pendingAuthEmail = email;
+  document.getElementById('authCheckDesc').textContent = `${email} 宛にログイン用の6桁コードを送信しました。メールを確認して入力してください。`;
+  document.getElementById('auth-code').value = '';
+  document.getElementById('auth-code-error').style.display = 'none';
   showAuthStep('check');
+}
+
+async function verifyCode(){
+  const code = document.getElementById('auth-code').value.trim();
+  if(!code){
+    document.getElementById('auth-code-error').textContent = '6桁のコードを入力してください';
+    document.getElementById('auth-code-error').style.display = 'block';
+    return;
+  }
+  const btn = document.getElementById('authCodeSubmitBtn');
+  const prevLabel = btn.textContent;
+  btn.textContent = '確認中...';
+  const { error } = await sb.auth.verifyOtp({ email: pendingAuthEmail, token: code, type: 'email' });
+  btn.textContent = prevLabel;
+  if(error){
+    console.error(error);
+    document.getElementById('auth-code-error').textContent = 'コードが正しくありません。もう一度お試しください。';
+    document.getElementById('auth-code-error').style.display = 'block';
+    return;
+  }
+  document.getElementById('auth-code-error').style.display = 'none';
 }
 
 function openRegisterGate(){
