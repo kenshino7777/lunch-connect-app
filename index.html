@@ -328,7 +328,7 @@
 
       <div id="authEmailStep">
         <h2>はじめまして！</h2>
-        <div class="desc">Lunch Connectを使うには、メールアドレスでログインしてください。ログイン用の6桁コードをメールでお送りします。</div>
+        <div class="desc">Lunch Connectを使うには、メールアドレスでログインしてください。ログイン用のコードをメールでお送りします。</div>
         <label>メールアドレス</label>
         <input type="email" id="auth-email" placeholder="例）you@example.com">
         <div class="field-error" id="auth-email-error">メールアドレスを入力してください</div>
@@ -337,10 +337,10 @@
 
       <div id="authCheckStep" style="display:none;">
         <h2>コードを入力してください</h2>
-        <div class="desc" id="authCheckDesc">ログイン用の6桁コードを送信しました。メールを確認して入力してください。</div>
-        <label>6桁コード</label>
-        <input type="text" inputmode="numeric" maxlength="6" id="auth-code" placeholder="例）123456">
-        <div class="field-error" id="auth-code-error">6桁のコードを入力してください</div>
+        <div class="desc" id="authCheckDesc">ログイン用のコードを送信しました。メールを確認して入力してください。</div>
+        <label>コード</label>
+        <input type="text" inputmode="numeric" id="auth-code" placeholder="例）12345678">
+        <div class="field-error" id="auth-code-error">コードを入力してください</div>
         <button class="submit-btn" id="authCodeSubmitBtn" onclick="verifyCode()">ログイン</button>
         <button class="logout-btn" onclick="showEmailStep()">別のメールアドレスを使う</button>
       </div>
@@ -1189,7 +1189,7 @@ async function sendMagicLink(){
     return;
   }
   pendingAuthEmail = email;
-  document.getElementById('authCheckDesc').textContent = `${email} 宛にログイン用の6桁コードを送信しました。メールを確認して入力してください。`;
+  document.getElementById('authCheckDesc').textContent = `${email} 宛にログイン用のコードを送信しました。メールを確認して入力してください。`;
   document.getElementById('auth-code').value = '';
   document.getElementById('auth-code-error').style.display = 'none';
   showAuthStep('check');
@@ -1198,7 +1198,7 @@ async function sendMagicLink(){
 async function verifyCode(){
   const code = document.getElementById('auth-code').value.trim();
   if(!code){
-    document.getElementById('auth-code-error').textContent = '6桁のコードを入力してください';
+    document.getElementById('auth-code-error').textContent = 'コードを入力してください';
     document.getElementById('auth-code-error').style.display = 'block';
     return;
   }
