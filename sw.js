@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lunch-connect-v1';
+const CACHE_NAME = 'lunch-connect-v2';
 const APP_SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -13,17 +13,17 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
+// Network-first: always prefer the latest deployed version; only fall back
+// to the cache when offline, so updates show up immediately instead of
+// being masked by a stale cached copy.
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
   if (url.origin !== location.origin) return;
   e.respondWith(
-    caches.match(e.request).then(cached => {
-      const network = fetch(e.request).then(res => {
-        if (res.ok) caches.open(CACHE_NAME).then(cache => cache.put(e.request, res.clone()));
-        return res;
-      }).catch(() => cached);
-      return cached || network;
-    })
+    fetch(e.request).then(res => {
+      if (res.ok) caches.open(CACHE_NAME).then(cache => cache.put(e.request, res.clone()));
+      return res;
+    }).catch(() => caches.match(e.request))
   );
 });
