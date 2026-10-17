@@ -630,7 +630,7 @@ function goToTab(tab){
 
 function renderDiary(){
   const el = document.getElementById('homeDiaryPreview');
-  const preview = feedData.slice(0, 3);
+  const preview = feedData.slice(0, 6);
   if(!preview.length){
     el.innerHTML = '<div class="diary-row"><div class="diary-info"><div class="store">まだ日記がありません</div></div></div>';
     return;
